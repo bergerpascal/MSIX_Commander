@@ -6,7 +6,7 @@ Parts of it will also work with Windows 10 1803 and 1709.
 
 # Download:
 
-https://github.com/bergerpascal/MSIX/releases
+https://github.com/bergerpascal/MSIX_Commander/releases
 
 # Tested on:
 - Windows 10 x64 1803

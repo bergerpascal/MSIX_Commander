@@ -1,4 +1,4 @@
-﻿$ScriptVersion = "1.0.0"
+$ScriptVersion = "1.0.3"
 #region GUI
 #ERASE ALL THIS AND PUT XAML BELOW between the @" "@
 $inputXML = @"
@@ -7,22 +7,22 @@ $inputXML = @"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:MSIX_Toolkit"
+        xmlns:local="clr-namespace:MSIX_Commander"
         mc:Ignorable="d"
         Title="MSIX Commander" Width="800" Height="600">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition/>
         </Grid.ColumnDefinitions>
-        <Label x:Name="Label_Messages" Content="Messages:" HorizontalAlignment="Left" Height="27" Margin="0,8,0,0" VerticalAlignment="Top" Width="64"/>
-        <TextBox x:Name="TextBox_Messages" Height="23" Margin="69,10,10,0" TextWrapping="Wrap" VerticalAlignment="Top" IsEnabled="False"/>
-        <TabControl Margin="0,40,10,29.5">
+        <Label x:Name="Label_Messages" Content="Messages:" HorizontalAlignment="Left" Height="27" VerticalAlignment="Top" Width="64" Margin="0,-4,0,0"/>
+        <TextBox x:Name="TextBox_Messages" Height="37" Margin="69,4,10,0" TextWrapping="Wrap" VerticalAlignment="Top" IsEnabled="False"/>
+        <TabControl Margin="0,46,10,23.5">
             <TabItem Header="Installed">
                 <Grid Background="#FFE5E5E5">
                     <Grid.RowDefinitions>
                         <RowDefinition/>
                     </Grid.RowDefinitions>
-                    <ListView x:Name="ListView_MSIXPackages" Margin="0,87,0,0" VerticalAlignment="Top" HorizontalAlignment="Left" MinWidth="352">
+                    <ListView x:Name="ListView_MSIXPackages" Margin="0,87,0,0" VerticalAlignment="Top" HorizontalAlignment="Left" MinWidth="635" MinHeight="380">
                         <ListView.View>
                             <GridView>
                                 <GridViewColumn Header="Name" DisplayMemberBinding ="{Binding Name}"/>
@@ -33,14 +33,15 @@ $inputXML = @"
                         </ListView.View>
                     </ListView>
                     <Button x:Name="Button_GetSoftware" Content="Get Software" HorizontalAlignment="Left" Margin="0,32,0,0" VerticalAlignment="Top" Width="93"/>
-                    <Button x:Name="Button_Filter" Content="Filter" HorizontalAlignment="Left" Margin="560,29,0,0" VerticalAlignment="Top" Width="75"/>
-                    <TextBox x:Name="TexBox_Filter" HorizontalAlignment="Left" Height="23" Margin="306,29,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="249"/>
-                    <Label x:Name="Label_Filter" Content="Filter:" HorizontalAlignment="Left" Height="23" VerticalAlignment="Top" Width="46" Margin="270,29,0,0"/>
-                    <CheckBox x:Name="CheckBox_EnterpriseSigned" Content="Only Enterprise signed" HorizontalAlignment="Left" Margin="112,34,0,0" VerticalAlignment="Top" IsChecked="True"/>
+                    <Button x:Name="Button_Filter" Content="Filter" HorizontalAlignment="Left" Margin="560,31,0,0" VerticalAlignment="Top" Width="75"/>
+                    <TextBox x:Name="TexBox_Filter" HorizontalAlignment="Left" Height="23" Margin="334,29,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="221"/>
+                    <Label x:Name="Label_Filter" Content="Filter:" HorizontalAlignment="Left" Height="23" VerticalAlignment="Top" Width="46" Margin="298,29,0,0"/>
+                    <CheckBox x:Name="CheckBox_EnterpriseSigned" Content="Only Enterprise/Developer signed" HorizontalAlignment="Left" Margin="99,34,0,0" VerticalAlignment="Top" IsChecked="True"/>
                     <Button x:Name="Button_OpenInstallLocation" Content="Open Installlocation" HorizontalAlignment="Left" VerticalAlignment="Top" Width="114" Margin="0,58,0,0"/>
                     <Button x:Name="Button_OpenUserData" Content="Open Userdata" HorizontalAlignment="Left" Margin="119,58,0,0" Width="114" Height="20" VerticalAlignment="Top"/>
                     <Label x:Name="Label_Installed" Content="Work with installed MSIX Packages" HorizontalAlignment="Left" FontWeight="Bold" Height="26" VerticalAlignment="Top" Margin="-2,0,0,0"/>
-                    <Button x:Name="Button_Uninstall" Content="Uninstall" HorizontalAlignment="Left" Margin="238,58,0,0" VerticalAlignment="Top" Width="114"/>
+                    <Button x:Name="Button_Uninstall" Content="Uninstall" HorizontalAlignment="Left" Margin="357,58,0,0" VerticalAlignment="Top" Width="114"/>
+                    <Button x:Name="Button_Open_Manifest" Content="Open Manifest" HorizontalAlignment="Left" Margin="238,58,0,0" VerticalAlignment="Top" Width="114"/>
                 </Grid>
             </TabItem>
             <TabItem x:Name="Tab_certificate" Header="Certificate">
@@ -102,6 +103,65 @@ $inputXML = @"
                     <TextBlock x:Name="TexBlock_PackagingToolDriverCheck" HorizontalAlignment="Left" Margin="6,21,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="36" Width="758" Text="This will let you check the state of the Packaging Tool Driver FeatureOnDemand (FOD). You can also install and uninstall it. Installing will take some time, please be patient. This requires Administrator rights. It only works with Windows 10 1809 or higher."/>
                     <Button x:Name="Button_PackagingToolDriverInstall" Content="Install from WindowsUpdate*" Margin="307,74,0,0" VerticalAlignment="Top" Height="33" HorizontalAlignment="Left" Width="164"/>
                     <Button x:Name="Button_PackagingToolDriverUninstall" Content="Uninstall*" Margin="506,74,0,0" VerticalAlignment="Top" Height="33" Width="128" HorizontalAlignment="Left"/>
+                    <Label x:Name="Label_StopServices" Content="Stop services" HorizontalAlignment="Left" VerticalAlignment="Top" FontWeight="Bold" Margin="0,107,0,0"/>
+                    <TextBlock x:Name="TexBlock_StopServices" HorizontalAlignment="Left" Margin="6,133,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="48" Width="758"><Run Text="The following services will be stopped and disable if they are present on your system:"/><LineBreak/><Run Text="Diagnostic Policy Service, Offline Files, Windows Search, Windows Update, SMS-Agent-Host, PLRestartMgrService"/><LineBreak/><Run Text="This requires Administrator rights. "/></TextBlock>
+                    <Button x:Name="Button_StopServices" Content="Stop services*" Margin="307,186,0,0" VerticalAlignment="Top" Height="33" HorizontalAlignment="Left" Width="164"/>
+                </Grid>
+            </TabItem>
+            <TabItem x:Name="Tab_EditManifest" Header="EditManifest">
+                <Grid Background="#FFE5E5E5" Margin="0,0,0,-183">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="Button_EditManifest_SingelFile_Edit" Content="Edit Manifest" Margin="325,402,0,0" VerticalAlignment="Top" Height="26" HorizontalAlignment="Left" Width="128"/>
+                    <Label x:Name="Label_EditManifest_FileOrFolder" Content="What to edit" HorizontalAlignment="Left" VerticalAlignment="Top" FontWeight="Bold" Margin="-2,281,0,0"/>
+                    <TextBlock x:Name="TexBlock_EditManifest_FileOrFolder" HorizontalAlignment="Left" Margin="3,307,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="37" Width="757"><Run Text="This will let you select one single MSIX file or a folder containing MSIX Files"/><Run Text="."/><Run Text=" "/><Run Text="If you select a folder, the tool will also look in it's subfolders for MSIX Files."/></TextBlock>
+                    <Button x:Name="Button_EditManifest_SingelFile_Browse" Content="Select single MSIX" Margin="233,370,0,0" VerticalAlignment="Top" Height="26" HorizontalAlignment="Left" Width="113"/>
+                    <Label x:Name="Label_EditManifest_SingelFile_MSIX" Content="File or Folder:" HorizontalAlignment="Left" Margin="-2,341,0,0" VerticalAlignment="Top"/>
+                    <TextBox x:Name="TextBox_EditManifest_SingelFile_SelectedMSIX" Height="20" Margin="104,345,71,0" TextWrapping="Wrap" VerticalAlignment="Top" MaxHeight="20"/>
+                    <Button x:Name="Button_EditManifest_SelectCertToImport" Content="Browse" Margin="0,162,17,0" VerticalAlignment="Top" Height="26" HorizontalAlignment="Right" Width="48"/>
+                    <TextBox x:Name="TextBox_EditManifest_SelectedCert" Height="26" Margin="104,162,71,0" TextWrapping="Wrap" VerticalAlignment="Top"/>
+                    <TextBlock x:Name="TexBlock_EditManifest_Cert" HorizontalAlignment="Left" Margin="3,123,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="33" Width="758"><Run Text="If you don't specify a PFX certificate and its password, the MSIX will not be signed after the manifest edit and you will not be able to install it. If you don't use the same certificate your original MSIX was signed with, the new MSIX will "/><Run Text="not "/><Run Text="be accepted as an update package for the old one."/></TextBlock>
+                    <Label x:Name="Label_EditManifest_Password" Content="Password:" HorizontalAlignment="Left" Margin="-4,192,0,0" VerticalAlignment="Top"/>
+                    <PasswordBox x:Name="PasswordBox_EditManifest_CertPassword" HorizontalAlignment="Left" Margin="104,192,0,0" VerticalAlignment="Top" Width="242" Height="26"/>
+                    <Label x:Name="Label_EditManifest_DataToChange" Content="Data that should be changed" HorizontalAlignment="Left" VerticalAlignment="Top" FontWeight="Bold" Margin="-2,-1,0,0"/>
+                    <Label x:Name="Label_EditManifest_MinVersionTested" Content="MinVersion:" HorizontalAlignment="Left" Margin="-2,74,0,0" VerticalAlignment="Top"/>
+                    <TextBox x:Name="TextBox_MinVersionTested" Height="26" Margin="104,74,0,0" TextWrapping="Wrap" VerticalAlignment="Top" HorizontalAlignment="Left" Width="242"/>
+                    <Label x:Name="Label_EditManifest_MaxVersionTested" Content="MaxVersionTested:" HorizontalAlignment="Left" Margin="352,74,0,0" VerticalAlignment="Top"/>
+                    <TextBox x:Name="TextBox_MaxVersionTested" Height="26" Margin="466,74,71,0" TextWrapping="Wrap" VerticalAlignment="Top"/>
+                    <TextBlock x:Name="TexBlock_EditManifest_DataToChange" HorizontalAlignment="Left" Margin="3,21,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="56" Width="776"><Run Text="You can specify a new MinVersionTested and MaxVersionTested. If you don't specify one of them, the current value in the Manifest will not be changed. But you must define at least one of them or nothing will happen. "/><LineBreak/><Run Text="Those values must be specified as Windows Build numbers like 10.0.16299.0 or 10.0.17134.0"/></TextBlock>
+                    <Label x:Name="Label_EditManifest_Timeserver" Content="Timeserver:" HorizontalAlignment="Left" Margin="394,192,0,0" VerticalAlignment="Top"/>
+                    <TextBox x:Name="TextBox_Timeserver" Height="26" Margin="466,192,71,0" TextWrapping="Wrap" VerticalAlignment="Top" Text="http://timestamp.digicert.com"/>
+                    <Label x:Name="Label_EditManifest_Cert" Content="Certificate to use" HorizontalAlignment="Left" VerticalAlignment="Top" FontWeight="Bold" Margin="-2,100,0,0"/>
+                    <Label x:Name="Label_TexBlock_EditManifest_SelectedCert" Content="Selected PFX Cert:" HorizontalAlignment="Left" Margin="-3,162,0,0" VerticalAlignment="Top"/>
+                    <RadioButton x:Name="RadioButton_EditManifest_IncreaseVersion_Yes" Content="Yes" HorizontalAlignment="Left" Margin="104,264,0,0" VerticalAlignment="Top" IsChecked="True" GroupName="IncreaseVersion"/>
+                    <RadioButton x:Name="RadioButton_EditManifest_IncreaseVersion_No" Content="No" HorizontalAlignment="Left" Margin="150,264,0,0" VerticalAlignment="Top" GroupName="IncreaseVersion"/>
+                    <TextBlock x:Name="TexBlock_EditManifest_IncreaseVersion" HorizontalAlignment="Left" Margin="3,245,0,0" TextWrapping="Wrap" Text="Should the package version number be increased by one, after editing the manifest?" VerticalAlignment="Top" Height="17" Width="758"/>
+                    <Label x:Name="Label_EditManifest_IncreaseVersion1" Content="Increase Version:" HorizontalAlignment="Left" Margin="-2,256,0,0" VerticalAlignment="Top"/>
+                    <Label x:Name="Label_EditManifest_IncreaseVersion" Content="Increase the Package Version" HorizontalAlignment="Left" VerticalAlignment="Top" FontWeight="Bold" Margin="-2,222,0,0"/>
+                    <Button x:Name="Button_EditManifest_SelectFolder" Content="Select Folder" Margin="424,370,0,0" VerticalAlignment="Top" Height="26" HorizontalAlignment="Left" Width="124"/>
+                </Grid>
+            </TabItem>
+            <TabItem x:Name="Tab_ChangeSignature" Header="ChangeSignature">
+                <Grid Background="#FFE5E5E5" Margin="0,0,0,-183">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="Button_ChangeSignature" Content="Change Signature" Margin="325,244,0,0" VerticalAlignment="Top" Height="26" HorizontalAlignment="Left" Width="128"/>
+                    <Label x:Name="Label_ChangeSignature_FileOrFolder" Content="What to edit" HorizontalAlignment="Left" VerticalAlignment="Top" FontWeight="Bold" Margin="-2,123,0,0"/>
+                    <TextBlock x:Name="TexBlock_ChangeSignature_FileOrFolder" HorizontalAlignment="Left" Margin="3,149,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="37" Width="757"><Run Text="This will let you select one single MSIX file or a folder containing MSIX Files"/><Run Text="."/><Run Text=" "/><Run Text="If you select a folder, the tool will also look in it's subfolders for MSIX Files."/></TextBlock>
+                    <Button x:Name="Button_ChangeSignature_SingelFile_Browse" Content="Select single MSIX" Margin="233,212,0,0" VerticalAlignment="Top" Height="26" HorizontalAlignment="Left" Width="113"/>
+                    <Label x:Name="Label_ChangeSignature_SingelFile_MSIX" Content="File or Folder:" HorizontalAlignment="Left" Margin="-2,183,0,0" VerticalAlignment="Top"/>
+                    <TextBox x:Name="TextBox_ChangeSignature_SelectedMSIX" Height="20" Margin="104,187,71,0" TextWrapping="Wrap" VerticalAlignment="Top" MaxHeight="20"/>
+                    <Button x:Name="Button_ChangeSignature_SelectCertToImport" Content="Browse" Margin="0,64,17,0" VerticalAlignment="Top" Height="26" HorizontalAlignment="Right" Width="48"/>
+                    <TextBox x:Name="TextBox_ChangeSignature_SelectedCert" Height="26" Margin="104,64,71,0" TextWrapping="Wrap" VerticalAlignment="Top"/>
+                    <TextBlock x:Name="TexBlock_ChangeSignature_Cert" HorizontalAlignment="Left" Margin="3,25,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="33" Width="758"><Run Text="Your MSIX will be signed with this certificate. This will also change the publisher inside your manifest file to the subject of this certificate."/><LineBreak/><Run Text="You must be aware, that changing the Publisher of the MSIX will break Updates and Modification Packages."/></TextBlock>
+                    <Label x:Name="Label_ChangeSignature_Password" Content="Password:" HorizontalAlignment="Left" Margin="-4,94,0,0" VerticalAlignment="Top"/>
+                    <PasswordBox x:Name="PasswordBox_ChangeSignatureCertPassword" HorizontalAlignment="Left" Margin="104,94,0,0" VerticalAlignment="Top" Width="242" Height="26"/>
+                    <TextBox x:Name="TextBox_ChangeSignature_Timeserver" Height="26" Margin="466,94,71,0" TextWrapping="Wrap" VerticalAlignment="Top" Text="http://timestamp.digicert.com"/>
+                    <Label x:Name="Label_ChangeSignature_Cert" Content="Certificate to use" HorizontalAlignment="Left" VerticalAlignment="Top" FontWeight="Bold" Margin="-2,2,0,0"/>
+                    <Label x:Name="Label_TexBlock_ChangeSignature_SelectedCert" Content="Selected PFX Cert:" HorizontalAlignment="Left" Margin="-3,64,0,0" VerticalAlignment="Top"/>
+                    <Button x:Name="Button_ChangeSignature_SelectFolder" Content="Select Folder" Margin="424,212,0,0" VerticalAlignment="Top" Height="26" HorizontalAlignment="Left" Width="124"/>
                 </Grid>
             </TabItem>
         </TabControl>
@@ -145,6 +205,7 @@ Get-FormVariables
 #endregion
 
 #region Initialize
+
 $ThisScriptParentPath = $MyInvocation.MyCommand.Path -replace $myInvocation.MyCommand.Name,""
 $ThisScriptName = $myInvocation.MyCommand.Name
 
@@ -153,6 +214,7 @@ $WPFLabel_Version.Content = "Version: $ScriptVersion"
 
 #Clear some Stuff First
 $MSIXData =$null
+
 
 #Check if the OS Version is supported
 $OSVersion = (Get-WmiObject -class Win32_OperatingSystem ).Version
@@ -184,12 +246,502 @@ else{
 }
 
 
+#Check if user is Admin
+If ([bool](([System.Security.Principal.WindowsIdentity]::GetCurrent()).groups -match "S-1-5-32-544")) {
+    $Script:UserIsAdmin = $true
+}
+else{
+    $Script:UserIsAdmin = $false
+}
+
 
 
 #endregion
 
 #region Functions
 
+Function Change-Signature {
+
+    param(
+        [Parameter(Mandatory=$true)]
+        [String]
+        $Path
+    )
+
+    $VBS = new-object -comobject wscript.shell
+
+
+    $CleandUpPath = $Path.replace('"',"")
+
+    $pfxPath = $WPFTextBox_ChangeSignature_SelectedCert.Text
+    $Password = $WPFPasswordBox_ChangeSignatureCertPassword.Password
+
+    $TimeStampServer = $WPFTextBox_ChangeSignature_Timeserver.Text
+
+        
+    If(($pfxPath) -and ($Password)){
+        #Get the SDK Tools
+        $MSIXPackagingToolInstallLocation =  (Get-AppxPackage -Name "Microsoft.MsixPackagingTool*").InstallLocation
+        If($MSIXPackagingToolInstallLocation){
+
+                    $MsixPackagingToolSDK = "$env:TEMP\MsixPackagingToolSDK"
+                    Copy-Item -Path "$MSIXPackagingToolInstallLocation\SDK" -Destination $MsixPackagingToolSDK  -Recurse -Force
+
+                    $makeappxPath = "$MsixPackagingToolSDK\makeappx.exe"
+                    $SignTool = "$MsixPackagingToolSDK\signtool.exe"
+
+                    $NewMSIXFolder = "$env:TEMP\_NewMSIXFiles\"
+
+                    IF(Test-Path -Path $CleandUpPath){
+                        If((get-item -Path $CleandUpPath).Extension.ToUpper() -eq ".MSIX"){
+                            $SelctedPackages = get-item -Path $CleandUpPath
+                        }
+                        else{
+                            $SelctedPackages = (Get-ChildItem -Path $CleandUpPath -Recurse -Filter "*.msix" ) | Sort-Object
+                        }
+
+                        ForEach($package in $SelctedPackages){
+
+                            try{
+
+                                $SelectedMSIX = get-item -path $package.fullname
+
+                                $ExtractFolderName = $SelectedMSIX.Name.Replace($SelectedMSIX.Extension,"")
+
+                                $ExtractPath = "$env:TEMP\$ExtractFolderName"
+
+                                If(Test-Path -Path $ExtractPath){
+                                    Remove-Item -Force -Path $ExtractPath -Recurse
+                                }
+
+                                $UnpackParmas ="unpack -v -d ""$ExtractPath"" -p ""$SelectedMSIX"" -o"
+
+
+                                #Extract MSIX
+                                $process = Start-Process -FilePath $makeappxPath -ArgumentList $UnpackParmas -Wait -WindowStyle Hidden -PassThru
+
+                                If($process.exitcode -ne 0){
+                                    write-host $makeappxPath
+                                    write-host $UnpackParmas
+                                    throw
+                                }                                
+
+                                $ManifestXMLPath = "$ExtractPath\AppxManifest.xml"
+
+                                $ManifestContent = [XML](Get-Content -Path $ManifestXMLPath)          
+
+                                #Get infos from cert
+                                $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
+                                $cert.Import($pfxPath,$Password,'DefaultKeySet')
+
+                                $NewPublisher = $cert.Subject
+                                $OldPublisher = $ManifestContent.Package.Identity.Publisher
+
+                                If($OldPublisher -ne $NewPublisher){
+                                    $ManifestContent.Package.Identity.Publisher = $NewPublisher
+                                }
+
+                                #Check if Modification Package
+                                $ModificationPackagePublisher = $ManifestContent.Package.Dependencies.MainPackageDependency.Publisher
+                                If($OldPublisher -eq $ModificationPackagePublisher){
+                                    $Answer =$VBS.Popup(($package.Name +" is a modifiaction Package.`nThe Publisher of this Package and of the MainPackageDependency are identical.`n`nDo you want me to also update the MainPackageDependency publisher?"),0,"Modification Package",36)
+                                    If($Answer -eq  6){
+                                        $ManifestContent.Package.Dependencies.MainPackageDependency.Publisher = $NewPublisher
+                                    }
+                                }
+
+                                #Save NewXML
+                                $ManifestContent.Save($ManifestXMLPath)
+
+                                If((Test-Path $NewMSIXFolder) -eq $false){
+                                    md $NewMSIXFolder
+                                }
+
+                                $NewMSIXPath = "$NewMSIXFolder\$ExtractFolderName.msix"
+
+                                $MakeAppxParmas ="pack -d ""$ExtractPath"" -p ""$NewMSIXPath"" -o"
+
+                                $process = Start-Process -FilePath $makeappxPath -ArgumentList $MakeAppxParmas -PassThru -Wait -WindowStyle Hidden 
+
+                                If($process.exitcode -ne 0){                                    
+                                    write-host $makeappxPath
+                                    write-host $MakeAppxParmas
+                                    throw
+                                }
+
+                                Remove-Item -Force -Path $ExtractPath -Recurse
+
+                                If($pfxPath -and $Password){
+                                    If($TimeStampServer){
+                                        $SignArguments = "sign -f ""$pfxPath"" -p $Password -t ""$TimeStampServer"" -fd SHA256 -v ""$NewMSIXPath"""
+                                    }
+                                    else{
+                                        $SignArguments = "sign -f ""$pfxPath"" -p $Password -fd SHA256 -v ""$NewMSIXPath"""
+                                    }
+
+                                    $process = Start-Process -FilePath $SignTool -ArgumentList ($SignArguments) -PassThru -Wait -WindowStyle Hidden
+
+                                    If($process.exitcode -ne 0){
+                                        write-host $SignTool
+                                        write-host $SignArguments
+                                        throw
+                                    }
+                                    #Check if the Name contians __ folowed by 13 charachters because then that would be the oldpublisherID
+                                    If($ExtractFolderName.Length - $ExtractFolderName.LastIndexOf("__") -2 -eq 13){
+                                        #Install to get the Publisher ID and rename the file. After that uninstall it again
+
+                                        try{
+                                            $OldPublisherID = $ExtractFolderName.Substring($ExtractFolderName.LastIndexOf("__")+2, $ExtractFolderName.Length - $ExtractFolderName.LastIndexOf("__")-2)
+
+                                            $Package = get-item $NewMSIXPath
+                                            
+                                            $AppxPackagesBefore = get-AppxPackage
+                                            Add-AppxPackage -Path $package.Fullname -ErrorAction Stop
+                                            $AppxPackagesAfter = get-AppxPackage
+                                            $Difference = Compare-Object -ReferenceObject $AppxPackagesBefore -DifferenceObject $AppxPackagesAfter
+            
+                                            If($Difference.InputObject.count -gt 0){
+
+                                                $NewPublisherId = $Difference.InputObject.PublisherId
+
+                                                Rename-Item -path $NewMSIXPath -NewName ($ExtractFolderName.Replace($OldPublisherID,$NewPublisherId)+".msix")
+
+                                                try{
+                                                    $Difference.InputObject | Remove-AppxPackage -ErrorAction Stop
+
+                                                    $WPFTextBox_Messages.Text =  ("Removed MSIX " +$package.Name)
+                                                    $WPFTextBox_Messages.Foreground = "Black"
+
+                                                }catch{
+                                                    $ErrorMessage = $_.Exception.Message
+
+                                                    $WPFTextBox_Messages.Text =  ("Failed to remove package " +$package.Name +" / $ErrorMessage")
+                                                    $WPFTextBox_Messages.Foreground = "Red"
+
+                                                    $VBS.popup(("Failed to remove MSIX " +$package.Name +"`n`n$ErrorMessage"),0,"Error",16)
+                                                }
+                                            }
+                                            else{
+                                                $WPFTextBox_Messages.Text =  ("I think the MSIX " +$package.Name +" was already installed")
+                                                $WPFTextBox_Messages.Foreground = "Black"
+
+                                                $VBS.popup(("I think the MSIX " +$package.Name +" was already installed"),0,"OK",64)
+                                            }
+                                        }catch{
+
+                                            If($ModificationPackagePublisher.Length -gt 2){
+
+                                                $WPFTextBox_Messages.Text =  ("Failed to add MSIX " +$package.Name +" it seams to be a Modification Package / $ErrorMessage")
+                                                $WPFTextBox_Messages.Foreground = "Red"
+                                                $VBS.popup(($package.Name +"`nIs a Modification Package. I couldn't automatically change the publisher hash in the Filename.`nYou need to change it manually."),0,"Modification Package",48)
+                                            }
+                                            else{
+
+                                                $ErrorMessage = $_.Exception.Message
+                                                $WPFTextBox_Messages.Text =  ("Failed to add MSIX " +$package.Name +" / $ErrorMessage")
+                                                $WPFTextBox_Messages.Foreground = "Red"
+
+                                                $VBS.popup(("Failed to add MSIX " +$package.Name +"`n`n$ErrorMessage"),0,"Error",16)
+                                            }
+                                        }
+                                    }
+                                }
+                            }catch{
+                                $ErrorMessage = $_.Exception.Message
+
+                                $WPFTextBox_Messages.Text =  ("Failed to changed the signature for package " +$package.Name +" / $ErrorMessage")
+                                $WPFTextBox_Messages.Foreground = "Red"
+                                return
+                            }
+                        }
+
+                        $WPFTextBox_Messages.Text =  ("Change the signature for all selected " +$SelctedPackages.count +" packages.")
+                        $WPFTextBox_Messages.Foreground = "Black"
+
+                        explorer.exe $NewMSIXFolder
+                    }
+                    else{
+                        $WPFTextBox_Messages.Text =  ("File or Folder not found $CleandUpPath")
+                        $WPFTextBox_Messages.Foreground = "Red"
+                    }
+
+                    Remove-Item -Force -Path $MsixPackagingToolSDK -Recurse
+        }
+        else{
+            $WPFTextBox_Messages.Text =  ("Failed to find the MSXI Packaging Tool. For this functionality it is required. Pleas install it from the Windows Store.")
+            $WPFTextBox_Messages.Foreground = "Red"
+        }
+    }else{
+        $WPFTextBox_Messages.Text =  ("No pfx cert and password, therefore I don’t need to modify anything.")
+        $WPFTextBox_Messages.Foreground = "Red"
+    }
+}
+
+Function Stop-Services {
+
+    #List Of Services to stopp and disable
+    $StoppedServices = "none"
+    $FailedServices = "none"
+    $NotFoundServices = "none"
+    $Services = @("PLRestartMgrService","DPS","CscService","WSearch","wuauserv","CcmExec")
+
+
+    If($UserIsAdmin -eq $true){
+        #Disable Services
+
+        ForEach ($Service in $Services){
+            $IsAvailable = $null
+            $IsAvailable = Get-service $Service -ErrorAction SilentlyContinue
+            If($IsAvailable){
+                try{
+                    If($IsAvailable.Status -eq "Running"){
+                        Stop-Service -Name $Service -Force -ErrorAction Stop
+                    }
+                    Set-Service –Name $Service –StartupType "Disabled" -ErrorAction Stop
+            
+                    If($StoppedServices -ne "none"){
+                        $StoppedServices += (", " +$IsAvailable.DisplayName)
+                    }
+                    else{
+                        $StoppedServices = $IsAvailable.DisplayName.ToString()
+                    }
+                }
+                catch{
+                    If($FailedServices -ne "none"){
+                        $FailedServices += (", " +$IsAvailable.DisplayName)
+                    }
+                    else{
+                        $FailedServices = $IsAvailable.DisplayName.ToString()
+                    }
+                }
+            }
+            else{
+                If($NotFoundServices -ne "none"){
+                    $NotFoundServices += (", " +$Service)
+                }
+                else{
+                    $NotFoundServices = $Service
+                }
+            }
+        }
+
+        $Message = "Stopped those Services: $StoppedServices / Couldn't find those: $NotFoundServices / Failed to stop those: $FailedServices"
+        $WPFTextBox_Messages.Text =  $Message
+
+        If($FailedServices -ne "none"){
+            $WPFTextBox_Messages.Foreground = "Red"
+        }
+        else{
+            $WPFTextBox_Messages.Foreground = "Black"
+        }
+    }
+    else{
+        $WPFTextBox_Messages.Text =  "You are not an administrator and this functionality requires admin rights.”
+        $WPFTextBox_Messages.Foreground = "Red"
+    }
+}
+
+Function Edit-Manifest {
+
+    param(
+        [Parameter(Mandatory=$true)]
+        [String]
+        $Path
+    )
+
+    $VBS = new-object -comobject wscript.shell
+
+
+    $RegExForBuild = "(0|[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])(\.(0|[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])){3}"
+    $CleandUpPath = $Path.replace('"',"")
+
+    $pfxPath = $WPFTextBox_EditManifest_SelectedCert.Text
+    $Password = $WPFPasswordBox_EditManifest_CertPassword.Password
+
+    $TimeStampServer = $WPFTextBox_Timeserver.Text
+
+    $NewMaxVersionTested = $WPFTextBox_MaxVersionTested.Text
+    $NewMinVersionTested = $WPFTextBox_MinVersionTested.Text
+
+        
+    If(($NewMaxVersionTested) -or ($NewMinVersionTested)){
+        #Check if Versionnumbers are Build numbers
+        If(($NewMinVersionTested -match $RegExForBuild) -eq $false){
+            $WPFTextBox_Messages.Text =  ("$NewMinVersionTested is not a regular Buildnumber like 1.0.0.0")
+            $WPFTextBox_Messages.Foreground = "Red"
+            Return
+        }
+
+        If(($NewMaxVersionTested -match $RegExForBuild) -eq $false){
+            $WPFTextBox_Messages.Text =  ("$NewMaxVersionTested is not a regular Buildnumber like 1.0.0.0")
+            $WPFTextBox_Messages.Foreground = "Red"
+            Return
+        }
+
+        #Get the SDK Tools
+        $MSIXPackagingToolInstallLocation =  (Get-AppxPackage -Name "Microsoft.MsixPackagingTool*").InstallLocation
+
+        If($MSIXPackagingToolInstallLocation){
+
+                    $MsixPackagingToolSDK = "$env:TEMP\MsixPackagingToolSDK"
+                    Copy-Item -Path "$MSIXPackagingToolInstallLocation\SDK" -Destination $MsixPackagingToolSDK  -Recurse -Force
+
+                    $makeappxPath = "$MsixPackagingToolSDK\makeappx.exe"
+                    $SignTool = "$MsixPackagingToolSDK\signtool.exe"
+
+                    $NewMSIXFolder = "$env:TEMP\_NewMSIXFiles\"
+
+                    IF(Test-Path -Path $CleandUpPath){
+                        If((get-item -Path $CleandUpPath).Extension.ToUpper() -eq ".MSIX"){
+                            $SelctedPackages = get-item -Path $CleandUpPath
+                        }
+                        else{
+                            $SelctedPackages = (Get-ChildItem -Path $CleandUpPath -Recurse -Filter "*.msix" ) | Sort-Object
+                        }
+
+                        ForEach($package in $SelctedPackages){
+
+                            try{
+
+                                $SelectedMSIX = get-item -path $package.fullname
+
+                                $ExtractFolderName = $SelectedMSIX.Name.Replace($SelectedMSIX.Extension,"")
+
+                                $ExtractPath = "$env:TEMP\$ExtractFolderName"
+
+                                If(Test-Path -Path $ExtractPath){
+                                    Remove-Item -Force -Path $ExtractPath -Recurse
+                                }
+
+                                $UnpackParmas ="unpack -v -d ""$ExtractPath"" -p ""$SelectedMSIX"" -o"
+
+
+                                #Extract MSIX
+                                $process = Start-Process -FilePath $makeappxPath -ArgumentList $UnpackParmas -Wait -WindowStyle Hidden -PassThru
+
+                                If($process.exitcode -ne 0){
+                                    write-host $makeappxPath
+                                    write-host $UnpackParmas
+                                    throw
+                                }                                
+
+                                $ManifestXMLPath = "$ExtractPath\AppxManifest.xml"
+
+                                $ManifestContent = [XML](Get-Content -Path $ManifestXMLPath)
+                                                                
+                                $MSIXVersionOld = $ManifestContent.Package.Identity.Version
+
+
+                                If($WPFRadioButton_EditManifest_IncreaseVersion_Yes.IsChecked){
+                                    $MSIXVersionNew = $MSIXVersionOld.split(".")[0] +"." + $MSIXVersionOld.split(".")[1] +"." + $MSIXVersionOld.split(".")[2] +"." +([INT]$MSIXVersionOld.split(".")[3] +1)
+                                    #Set Increased Version
+                                    $ManifestContent.Package.Identity.Version = $MSIXVersionNew
+                                    $NewMSIXName = $ExtractFolderName.Replace($MSIXVersionOld,$MSIXVersionNew)
+                                }
+                                else{
+                                    $NewMSIXName = $ExtractFolderName
+                                }
+
+                                                                   
+                                #Change MaxVersionTested and Minversion
+                                If($NewMaxVersionTested){                                  
+                                    $ManifestContent.Package.Dependencies.TargetDeviceFamily.MaxVersionTested = $NewMaxVersionTested    
+                                }
+
+                                If($NewMinVersionTested){
+                                    $ManifestContent.Package.Dependencies.TargetDeviceFamily.MinVersion = $NewMinVersionTested
+                                }
+
+                                If(($pfxPath) -and ($Password)){
+                                    $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
+                                    $cert.Import($pfxPath,$Password,'DefaultKeySet')
+
+                                    $NewPublisher = $cert.Subject
+                                    $OldPublisher = $ManifestContent.Package.Identity.Publisher
+
+                                    If($OldPublisher -ne $NewPublisher){
+
+                                        $Answer = $VBS.popup(($SelectedMSIX.Name +"`n`n" +"You are not using the same certificate that the one the original package was signed with.`n`nIf you use this certificate the package will be treated as a new package. This means that Updates and Modification Packages will no longer work.`n`nIt’s heavily recommended to use the original certificate and now click on No. `n`nDo you want to use this new certificate anyways and ignore this warning?"),0,"Publisher certificate is different",36)
+
+                                        #7 means the user pressed No, so the modification failes
+                                        If($Answer -eq 7){                                        
+                                            throw
+                                        }
+
+                                        $ManifestContent.Package.Identity.Publisher = $NewPublisher
+                                    }
+                                }
+
+                                #Save NewXML
+                                $ManifestContent.Save($ManifestXMLPath)
+
+                                If((Test-Path $NewMSIXFolder) -eq $false){
+                                    md $NewMSIXFolder
+                                }
+
+                                $NewMSIXPath = "$NewMSIXFolder\$NewMSIXName.msix"
+
+                                $MakeAppxParmas ="pack -d ""$ExtractPath"" -p ""$NewMSIXPath"" -o"
+
+                                $process = Start-Process -FilePath $makeappxPath -ArgumentList $MakeAppxParmas -PassThru -Wait -WindowStyle Hidden 
+
+                                If($process.exitcode -ne 0){                                    
+                                    write-host $makeappxPath
+                                    write-host $MakeAppxParmas
+                                    throw
+                                }
+
+                               # Remove-Item -Force -Path $ExtractPath -Recurse
+
+                                If($pfxPath -and $Password){
+                                    If($TimeStampServer){
+                                        $SignArguments = "sign -f ""$pfxPath"" -p $Password -t ""$TimeStampServer"" -fd SHA256 -v ""$NewMSIXPath"""
+                                    }
+                                    else{
+                                        $SignArguments = "sign -f ""$pfxPath"" -p $Password -fd SHA256 -v ""$NewMSIXPath"""
+                                    }
+
+                                    $process = Start-Process -FilePath $SignTool -ArgumentList ($SignArguments) -PassThru -Wait -WindowStyle Hidden
+
+                                    If($process.exitcode -ne 0){
+                                        write-host $SignTool
+                                        write-host $SignArguments
+                                        throw
+                                    }
+                                }
+                            }catch{
+                                $ErrorMessage = $_.Exception.Message
+
+                                $WPFTextBox_Messages.Text =  ("Failed to edit manifest for package " +$package.Name +" / $ErrorMessage")
+                                $WPFTextBox_Messages.Foreground = "Red"
+                                return
+                            }
+
+                        }
+
+                        $WPFTextBox_Messages.Text =  ("All selected " +$SelctedPackages.count +" Packages are edited.")
+                        $WPFTextBox_Messages.Foreground = "Black"
+
+                        explorer.exe $NewMSIXFolder
+                    }
+                    else{
+                        $WPFTextBox_Messages.Text =  ("File or Folder not found $CleandUpPath")
+                        $WPFTextBox_Messages.Foreground = "Red"
+                    }
+
+                    Remove-Item -Force -Path $MsixPackagingToolSDK -Recurse
+        }
+        else{
+            $WPFTextBox_Messages.Text =  ("Failed to find the MSXI Packaging Tool. For this functionality it is required. Pleas install it from the Windows Store.")
+            $WPFTextBox_Messages.Foreground = "Red"
+        }
+    }else{
+        $WPFTextBox_Messages.Text =  ("No new MinVersionTested or MaxVersionTested specified, therefore I don’t need to modify anything.")
+        $WPFTextBox_Messages.Foreground = "Orange"
+
+    }
+
+}
 
 Function Install-PackagingToolDriver{
 
@@ -246,7 +798,6 @@ Function Uninstall-PackagingToolDriver{
     }
 }
 
-
 Function Get-PackagingToolDriverStatus{
 
 
@@ -269,7 +820,6 @@ Function Get-PackagingToolDriverStatus{
     }
 
 }
-
 
 Function Install-MSIX {
 
@@ -479,6 +1029,30 @@ Function Open-UserData{
         $WPFTextBox_Messages.Text = "You need to get the Software first and then select an MSIX!"
         $WPFTextBox_Messages.Foreground = "Black"
     }
+}
+
+Function Open-Manifest{
+    $SelectedMSIX = $null
+    $SelectedMSIX = $WPFListView_MSIXPackages.SelectedItem.Name
+    $SelectedMSIXInstallLocation= $WPFListView_MSIXPackages.SelectedItem.InstallLocation
+
+    If($MSIXData){
+        IF($SelectedMSIX){
+            $WPFTextBox_Messages.Text =  "The selected MSIX is $SelectedMSIX"
+            $WPFTextBox_Messages.Foreground = "Black"
+            explorer.exe "$SelectedMSIXInstallLocation\AppxManifest.xml"
+
+
+        }
+        else{
+            $WPFTextBox_Messages.Text =  "You need to select a MSIX first"
+            $WPFTextBox_Messages.Foreground = "Black"
+        }
+    }
+    else{
+        $WPFTextBox_Messages.Text = "You need to get the Software first and then select an MSIX!"
+        $WPFTextBox_Messages.Foreground = "Black"
+    }
 
 }
 
@@ -514,8 +1088,8 @@ Function Get-InstalledMSIX{
 
 
     If($WPFCheckBox_EnterpriseSigned.IsChecked){
-
-        $InstalledApps = Get-AppxPackage | Where SignatureKind -EQ "Enterprise" |Select-Object -Property Name,Version,Publisher,InstallLocation  
+        $InstalledApps = Get-AppxPackage | Where-object SignatureKind -EQ "Developer"  |Select-Object -Property Name,Version,Publisher,InstallLocation  
+        $InstalledApps += Get-AppxPackage | Where-object SignatureKind -EQ "Enterprise"  |Select-Object -Property Name,Version,Publisher,InstallLocation  
 
     }
     else{
@@ -774,6 +1348,46 @@ Function Select-MSIX {
 
 }
 
+Function Select-File {
+    param(
+        [Parameter(Mandatory=$true)]
+        [String]
+        $FileType
+    )
+
+    #Select File
+    [System.Reflection.Assembly]::LoadWithPartialName("System.windows.forms") | Out-Null    
+    $OpenFileDialog = New-Object System.Windows.Forms.OpenFileDialog
+    If($FileType.IndexOf(".") -gt 0){
+        $OpenFileDialog.filter = "$FileType ($FileType)| $FileType"
+
+    }else{
+        $OpenFileDialog.filter = "$FileType (*.$FileType)| *.$FileType"
+    }
+    $OpenFileDialog.Title = "Select the $FileType file that you want to use"
+    $OpenFileDialog.ShowDialog() | Out-Null
+    $File=  $OpenFileDialog.FileName
+    $FileName = $OpenFileDialog.SafeFileName
+
+    If($File){    
+        If($FileName.ToUpper().EndsWith($FileType.ToUpper()) -gt 0){
+            $WPFTextBox_Messages.Text = "$FileName selected. This is a valid $FileType"
+            $WPFTextBox_Messages.Foreground = "Black"
+            $File
+        }
+        else{
+            $WPFTextBox_Messages.Text = "$FileName is not a valid $FileType! Select something else."
+            $WPFTextBox_Messages.Foreground = "Red"
+        }
+    }
+    else{
+        $WPFTextBox_Messages.Text = "Nothing selected!"
+        $WPFTextBox_Messages.Foreground = "Red"
+    }
+
+
+}
+
 #endregion
 
 #region Actions
@@ -785,14 +1399,15 @@ $WPFButton_GetSoftware.Add_Click({
         $WPFListView_MSIXPackages.ItemsSource.Clear()
         $WPFListView_MSIXPackages.Items.Refresh()
     }
-
     Get-InstalledMSIX
-
 })
-
 
 $WPFButton_Filter.Add_Click({
     Use-Filter
+})
+
+$WPFButton_Open_Manifest.Add_Click({
+    Open-Manifest
 })
 
 $WPFButton_OpenInstallLocation.Add_Click({
@@ -807,8 +1422,109 @@ $WPFButton_Uninstall.Add_Click({
     uninstall-App
 })
 
+#Edit Manifest Actions
 
-#Cert Acrtions
+$WPFButton_EditManifest_SingelFile_Browse.Add_Click({
+
+    $SelectedFile = Select-File -FileType "msix"
+    If($SelectedFile){
+        $WPFTextBox_EditManifest_SingelFile_SelectedMSIX.Text = $SelectedFile
+    }
+})
+
+$WPFButton_EditManifest_SelectFolder.Add_Click({
+    $SelectedFolder = $null
+    $SelectedFolder = Select-Folder
+
+    If($SelectedFolder){
+        $WPFTextBox_Messages.Text ="The Folder $SelectedFolder was selected"
+        $WPFTextBox_EditManifest_SingelFile_SelectedMSIX.Text = $SelectedFolder
+        $WPFTextBox_Messages.Foreground = "Black"
+
+    }
+    else{
+        $WPFTextBox_Messages.Text ="No Folder was selected"
+        $WPFTextBox_Messages.Foreground = "DarkOrange"
+
+    }
+})
+
+
+$WPFButton_EditManifest_SingelFile_Edit.Add_Click({
+
+    $SelectedPath = $WPFTextBox_EditManifest_SingelFile_SelectedMSIX.Text
+    If($SelectedPath){
+        Edit-Manifest -Path $SelectedPath
+    }
+    else{
+        $WPFTextBox_Messages.Text = "Nothing selected!"
+        $WPFTextBox_Messages.Foreground = "Red"
+    }
+})
+
+$WPFButton_EditManifest_SelectCertToImport.Add_Click({
+
+    $SelectedFile = Select-File -FileType "pfx"
+    If($SelectedFile){
+        $WPFTextBox_EditManifest_SelectedCert.Text = $SelectedFile
+    }
+})
+
+
+
+
+#Change Signature Actions
+
+
+$WPFButton_ChangeSignature_SingelFile_Browse.Add_Click({
+
+    $SelectedFile = Select-File -FileType "msix"
+    If($SelectedFile){
+        $WPFTextBox_ChangeSignature_SelectedMSIX.Text = $SelectedFile
+    }
+})
+
+$WPFButton_ChangeSignature_SelectFolder.Add_Click({
+    $SelectedFolder = $null
+    $SelectedFolder = Select-Folder
+
+    If($SelectedFolder){
+        $WPFTextBox_Messages.Text ="The Folder $SelectedFolder was selected"
+        $WPFTextBox_ChangeSignature_SelectedMSIX.Text = $SelectedFolder
+        $WPFTextBox_Messages.Foreground = "Black"
+
+    }
+    else{
+        $WPFTextBox_Messages.Text ="No Folder was selected"
+        $WPFTextBox_Messages.Foreground = "DarkOrange"
+
+    }
+})
+
+
+$WPFButton_ChangeSignature.Add_Click({
+
+    $SelectedPath = $WPFTextBox_ChangeSignature_SelectedMSIX.Text
+    If($SelectedPath){
+        Change-signature -Path $SelectedPath
+    }
+    else{
+        $WPFTextBox_Messages.Text = "Nothing selected!"
+        $WPFTextBox_Messages.Foreground = "Red"
+    }
+})
+
+$WPFButton_ChangeSignature_SelectCertToImport.Add_Click({
+
+    $SelectedFile = Select-File -FileType "pfx"
+    If($SelectedFile){
+        $WPFTextBox_ChangeSignature_SelectedCert.Text = $SelectedFile
+    }
+})
+
+
+
+#Cert Actions
 
 #Open Browse CertExportFolder Button
 $WPFButton_SelectCertStoreFolder.Add_Click({
@@ -937,7 +1653,9 @@ $WPFButton_PackagingToolDriverUninstall.Add_Click({
     Uninstall-PackagingToolDriver
 })
 
-
+$WPFButton_StopServices.Add_Click({
+    Stop-Services
+})
 
 #endregion
 
@@ -946,5 +1664,3 @@ $WPFButton_PackagingToolDriverUninstall.Add_Click({
 # Shows the form
 #===========================================================================
 $Form.ShowDialog() | out-null
-
-

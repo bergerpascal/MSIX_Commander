@@ -1,4 +1,4 @@
-$ScriptVersion = "1.0.3"
+﻿$ScriptVersion = "1.0.4"
 #region GUI
 #ERASE ALL THIS AND PUT XAML BELOW between the @" "@
 $inputXML = @"
@@ -29,6 +29,7 @@ $inputXML = @"
                                 <GridViewColumn Header="Version" DisplayMemberBinding ="{Binding Version}"/>
                                 <GridViewColumn Header="Publisher" DisplayMemberBinding ="{Binding Publisher}"/>
                                 <GridViewColumn Header="InstallLocation" DisplayMemberBinding ="{Binding InstallLocation}"/>
+                                <GridViewColumn Header="Modifications" DisplayMemberBinding ="{Binding Dependencies}"/>
                             </GridView>
                         </ListView.View>
                     </ListView>
@@ -93,7 +94,7 @@ $inputXML = @"
                     <TextBox x:Name="TextBox_TestSelectedInstallMSIX" Height="20" Margin="91,41,69,0" TextWrapping="Wrap" VerticalAlignment="Top" MaxHeight="20"/>
                 </Grid>
             </TabItem>
-            <TabItem x:Name="Tab_PackagingMachien" Header="PackagingMachien">
+            <TabItem x:Name="Tab_PackagingMachien" Header="PackagingMachine">
                 <Grid Background="#FFE5E5E5" Margin="0,0,0,-183">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition/>
@@ -104,8 +105,13 @@ $inputXML = @"
                     <Button x:Name="Button_PackagingToolDriverInstall" Content="Install from WindowsUpdate*" Margin="307,74,0,0" VerticalAlignment="Top" Height="33" HorizontalAlignment="Left" Width="164"/>
                     <Button x:Name="Button_PackagingToolDriverUninstall" Content="Uninstall*" Margin="506,74,0,0" VerticalAlignment="Top" Height="33" Width="128" HorizontalAlignment="Left"/>
                     <Label x:Name="Label_StopServices" Content="Stop services" HorizontalAlignment="Left" VerticalAlignment="Top" FontWeight="Bold" Margin="0,107,0,0"/>
-                    <TextBlock x:Name="TexBlock_StopServices" HorizontalAlignment="Left" Margin="6,133,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="48" Width="758"><Run Text="The following services will be stopped and disable if they are present on your system:"/><LineBreak/><Run Text="Diagnostic Policy Service, Offline Files, Windows Search, Windows Update, SMS-Agent-Host, PLRestartMgrService"/><LineBreak/><Run Text="This requires Administrator rights. "/></TextBlock>
+                    <TextBlock x:Name="TexBlock_StopServices" HorizontalAlignment="Left" Margin="6,133,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="48" Width="758"><Run Text="The following services will be stopped and disable"/><Run Text="d"/><Run Text=" if they are present on your system:"/><LineBreak/><Run Text="Diagnostic Policy Service, Offline Files, Windows Search, Windows Update, SMS-Agent-Host, PLRestartMgrService"/><LineBreak/><Run Text="This requires Administrator rights. "/></TextBlock>
                     <Button x:Name="Button_StopServices" Content="Stop services*" Margin="307,186,0,0" VerticalAlignment="Top" Height="33" HorizontalAlignment="Left" Width="164"/>
+                    <Label x:Name="Label_Sideloading" Content="Change Sideloading Status" HorizontalAlignment="Left" VerticalAlignment="Top" FontWeight="Bold" Margin="0,225,0,0"/>
+                    <TextBlock x:Name="TexBlock_Sideloading" HorizontalAlignment="Left" Margin="6,251,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="22" Width="758"><Run Text="Here you can enable or disable sideloading."/><Run Text=" "/><Run Text="This requires Administrator rights."/><LineBreak/><Run Text=""/><LineBreak/><Run Text=""/></TextBlock>
+                    <Button x:Name="Button_Change_SidelaodingStatus" Content="" Margin="307,304,0,0" VerticalAlignment="Top" Height="33" HorizontalAlignment="Left" Width="164"/>
+                    <TextBlock x:Name="TexBlock_CurrentSideloading" HorizontalAlignment="Left" Margin="6,273,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="22" Width="179"><Span Foreground="Black" FontSize="12" FontFamily="Segoe UI"><Run Text="The current sideloading status is:"/></Span><Span Foreground="Black" FontSize="12" FontFamily="Segoe UI"><LineBreak/></Span><LineBreak/><Run Text=""/><LineBreak/><Run Text=""/></TextBlock>
+                    <TextBlock x:Name="TexBlock_CurrentSideloading_Status" HorizontalAlignment="Left" Margin="190,273,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="22" Width="179" FontWeight="Bold" Foreground="#FFFF0600"/>
                 </Grid>
             </TabItem>
             <TabItem x:Name="Tab_EditManifest" Header="EditManifest">
@@ -204,61 +210,74 @@ Get-FormVariables
 
 #endregion
 
-#region Initialize
-
-$ThisScriptParentPath = $MyInvocation.MyCommand.Path -replace $myInvocation.MyCommand.Name,""
-$ThisScriptName = $myInvocation.MyCommand.Name
-
-#Set Version
-$WPFLabel_Version.Content = "Version: $ScriptVersion"
-
-#Clear some Stuff First
-$MSIXData =$null
-
-
-#Check if the OS Version is supported
-$OSVersion = (Get-WmiObject -class Win32_OperatingSystem ).Version
-
-[int]$Major = $OSVersion.split(".")[0]
-[int]$Build = $OSVersion.split(".")[2]
-
-If($Major -ge 10){
-    If($Build -ge 17763){
-        $WPFTextBox_Messages.Text ="Youre Windows Version supports all features of this tool."
-        $WPFTextBox_Messages.Foreground = "Green"
-    }
-    ElseIf($Build -eq 17134){
-            $WPFTextBox_Messages.Text ="You are running Windows 10 1803. In this version not all features of this tool are working."
-            $WPFTextBox_Messages.Foreground = "DarkOrange"
-    }
-    ElseIf($Build -eq 16299){
-            $WPFTextBox_Messages.Text ="You are running Windows 10 1709. In this version not all features of this tool are working."
-            $WPFTextBox_Messages.Foreground = "DarkOrange"
-    }
-    else{
-            $WPFTextBox_Messages.Text ="You are running Windows $OSVersion. This tool is not working with your Version of Windows. You need W10 1709 or higer."
-            $WPFTextBox_Messages.Foreground = "Red"
-    }
-}
-else{
-        $WPFTextBox_Messages.Text ="You are running Windows $OSVersion. This tool is not working with your Version of Windows. You need W10 1709 or higer."
-        $WPFTextBox_Messages.Foreground = "Red"
-}
-
-
-#Check if user is Admin
-If ([bool](([System.Security.Principal.WindowsIdentity]::GetCurrent()).groups -match "S-1-5-32-544")) {
-    $Script:UserIsAdmin = $true
-}
-else{
-    $Script:UserIsAdmin = $false
-}
-
-
-
-#endregion
 
 #region Functions
+
+
+Function Enable-Sideloading{
+
+    try{
+        $registryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" 
+        $Name1 = "AllowAllTrustedApps"
+        $Name2 = "AllowDevelopmentWithoutDevLicense"
+        $value1 = "1"
+        $value2 = "0"
+
+        New-ItemProperty -Path $registryPath -Name $name1 -Value $value1 -PropertyType DWORD -Force -ErrorAction Stop
+        New-ItemProperty -Path $registryPath -Name $name2 -Value $value2 -PropertyType DWORD -Force -ErrorAction Stop
+
+        $WPFTextBox_Messages.Text =  ("Sideloading succesfully enablead")
+        $WPFTextBox_Messages.Foreground = "Green"
+
+    }
+    catch{
+        $ErrorMessage = $_.Exception.Message
+        $WPFTextBox_Messages.Text =  ("Couldn't enable Sideloading / $ErrorMessage")
+        $WPFTextBox_Messages.Foreground = "Red"
+    }
+}
+
+Function Disable-Sideloading{
+
+    try{
+        $registryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" 
+        $Name1 = "AllowAllTrustedApps"
+        $Name2 = "AllowDevelopmentWithoutDevLicense"
+        $value1 = "0"
+
+        New-ItemProperty -Path $registryPath -Name $name1 -Value $value1 -PropertyType DWORD -Force -ErrorAction Stop
+        New-ItemProperty -Path $registryPath -Name $name2 -Value $value1 -PropertyType DWORD -Force -ErrorAction Stop
+
+        $WPFTextBox_Messages.Text =  ("Sideloading succesfully disabled")
+        $WPFTextBox_Messages.Foreground = "Green"
+
+    }
+    catch{
+        $ErrorMessage = $_.Exception.Message
+        $WPFTextBox_Messages.Text =  ("Couldn't disable Sideloading / $ErrorMessage")
+        $WPFTextBox_Messages.Foreground = "Red"
+    }
+}
+
+
+function Check-SideloadingStaus{
+
+    $registryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" 
+    $Name1 = "AllowAllTrustedApps"
+    $Name2 = "AllowDevelopmentWithoutDevLicense"
+
+    If((Get-ItemPropertyValue -Path $registryPath -Name $Name1) -eq 1){
+        If((Get-ItemPropertyValue -Path $registryPath -Name $Name2) -eq 1){
+            "Developper Mode Enabled"
+        }
+        else{
+            "Enabled"
+        }
+    }
+    else{
+        "Disabled"
+    }
+}
 
 Function Change-Signature {
 
@@ -1088,22 +1107,31 @@ Function Get-InstalledMSIX{
 
 
     If($WPFCheckBox_EnterpriseSigned.IsChecked){
-        $InstalledApps = Get-AppxPackage | Where-object SignatureKind -EQ "Developer"  |Select-Object -Property Name,Version,Publisher,InstallLocation  
-        $InstalledApps += Get-AppxPackage | Where-object SignatureKind -EQ "Enterprise"  |Select-Object -Property Name,Version,Publisher,InstallLocation  
+        $InstalledApps = Get-AppxPackage | Where-object SignatureKind -EQ "Developer"  |Select-Object -Property Name,Version,Publisher,InstallLocation,Dependencies
+        $InstalledApps += Get-AppxPackage | Where-object SignatureKind -EQ "Enterprise"  |Select-Object -Property Name,Version,Publisher,InstallLocation,Dependencies  
 
     }
     else{
 
-        $InstalledApps = Get-AppxPackage | Select-Object -Property Name,Version,Publisher,InstallLocation  
+        $InstalledApps = Get-AppxPackage | Select-Object -Property Name,Version,Publisher,InstallLocation,Dependencies 
 
     }
 
     ForEach($InstalledApp in $InstalledApps){
-
+        $DependenciesCount = 0
         $Name = $InstalledApp.Name
         $Publisher = $InstalledApp.Publisher
         $Version = $InstalledApp.Version
         $InstallLocation = $InstalledApp.InstallLocation
+        ForEach($Dependencie in $InstalledApp.Dependencies){
+            $DependenciesCount = $DependenciesCount +1
+            If($DependenciesCount -eq 1){
+                $Dependencies  = $Dependencie.ToString()
+            }else{
+                $Dependencies  = $Dependencies +" / " +$Dependencie.ToString()
+
+            }
+        }
 
         #$InstallDate = [Datetime]::ParseExact($InstalledSoftware.InstallDate,(Get-culture).DateTimeFormat.ShortDatePattern +" " +(Get-culture).DateTimeFormat.LongTimePattern,$null)
 
@@ -1112,6 +1140,7 @@ Function Get-InstalledMSIX{
         $SoftwareDetail | Add-Member -Name "Version" -MemberType NoteProperty -Value $Version
         $SoftwareDetail | Add-Member -Name "Publisher" -MemberType NoteProperty -Value $Publisher
         $SoftwareDetail | Add-Member -Name "InstallLocation" -MemberType NoteProperty -Value $InstallLocation
+        $SoftwareDetail | Add-Member -Name "Dependencies" -MemberType NoteProperty -Value $Dependencies
 
         $Script:MSIXData += $SoftwareDetail
     }
@@ -1390,6 +1419,75 @@ Function Select-File {
 
 #endregion
 
+#region Initialize
+
+$ThisScriptParentPath = $MyInvocation.MyCommand.Path -replace $myInvocation.MyCommand.Name,""
+$ThisScriptName = $myInvocation.MyCommand.Name
+
+#Set Version
+$WPFLabel_Version.Content = "Version: $ScriptVersion"
+
+#Clear some Stuff First
+$MSIXData =$null
+
+#Check Sideloading Staus
+
+$CurrentSideloadingStaus = Check-SideloadingStaus
+
+$WPFTexBlock_CurrentSideloading_Status.Text = $CurrentSideloadingStaus
+
+If($CurrentSideloadingStaus.Contains("Enabled")){
+    $WPFTexBlock_CurrentSideloading_Status.Foreground = "#FF0A7211" #Green
+    $WPFButton_Change_SidelaodingStatus.Content = "Disable*"
+}else{
+    $WPFTexBlock_CurrentSideloading_Status.Foreground = "#FFFF0600" #Red
+    $WPFButton_Change_SidelaodingStatus.Content = "Enable*"
+}
+
+
+#Check if the OS Version is supported
+$OSVersion = (Get-WmiObject -class Win32_OperatingSystem ).Version
+
+[int]$Major = $OSVersion.split(".")[0]
+[int]$Build = $OSVersion.split(".")[2]
+
+If($Major -ge 10){
+    If($Build -ge 17763){
+        $WPFTextBox_Messages.Text ="Youre Windows Version supports all features of this tool."
+        $WPFTextBox_Messages.Foreground = "Green"
+    }
+    ElseIf($Build -eq 17134){
+            $WPFTextBox_Messages.Text ="You are running Windows 10 1803. In this version not all features of this tool are working."
+            $WPFTextBox_Messages.Foreground = "DarkOrange"
+    }
+    ElseIf($Build -eq 16299){
+            $WPFTextBox_Messages.Text ="You are running Windows 10 1709. In this version not all features of this tool are working."
+            $WPFTextBox_Messages.Foreground = "DarkOrange"
+    }
+    else{
+            $WPFTextBox_Messages.Text ="You are running Windows $OSVersion. This tool is not working with your Version of Windows. You need W10 1709 or higer."
+            $WPFTextBox_Messages.Foreground = "Red"
+    }
+}
+else{
+        $WPFTextBox_Messages.Text ="You are running Windows $OSVersion. This tool is not working with your Version of Windows. You need W10 1709 or higer."
+        $WPFTextBox_Messages.Foreground = "Red"
+}
+
+
+#Check if user is Admin
+If ([bool](([System.Security.Principal.WindowsIdentity]::GetCurrent()).groups -match "S-1-5-32-544")) {
+    $Script:UserIsAdmin = $true
+}
+else{
+    $Script:UserIsAdmin = $false
+}
+
+
+
+#endregion
+
+
 #region Actions
 
 #Installed Actions
@@ -1656,6 +1754,33 @@ $WPFButton_PackagingToolDriverUninstall.Add_Click({
 $WPFButton_StopServices.Add_Click({
     Stop-Services
 })
+
+$WPFButton_Change_SidelaodingStatus.add_click({
+
+    $CurrentSideloadingStaus = Check-SideloadingStaus
+
+    If($CurrentSideloadingStaus.Contains("Enabled")){
+        Disable-Sideloading
+    }
+    else{
+        Enable-Sideloading
+    }
+
+    $CurrentSideloadingStaus = Check-SideloadingStaus
+
+    $WPFTexBlock_CurrentSideloading_Status.Text = $CurrentSideloadingStaus
+
+    If($CurrentSideloadingStaus.Contains("Enabled")){
+        $WPFTexBlock_CurrentSideloading_Status.Foreground = "#FF0A7211" #Green
+        $WPFButton_Change_SidelaodingStatus.Content = "Disable*"
+    }else{
+        $WPFTexBlock_CurrentSideloading_Status.Foreground = "#FFFF0600" #Red
+        $WPFButton_Change_SidelaodingStatus.Content = "Enable*"
+    }
+
+
+})
+
 
 #endregion
 

@@ -1,4 +1,4 @@
-﻿$ScriptVersion = "1.0.4"
+﻿$ScriptVersion = "1.0.4.1"
 #region GUI
 #ERASE ALL THIS AND PUT XAML BELOW between the @" "@
 $inputXML = @"
@@ -266,8 +266,8 @@ function Check-SideloadingStaus{
     $Name1 = "AllowAllTrustedApps"
     $Name2 = "AllowDevelopmentWithoutDevLicense"
 
-    If((Get-ItemPropertyValue -Path $registryPath -Name $Name1) -eq 1){
-        If((Get-ItemPropertyValue -Path $registryPath -Name $Name2) -eq 1){
+    If((Get-ItemProperty -Path $registryPath -ErrorAction SilentlyContinue).$Name1 -eq 1){
+        If((Get-ItemProperty -Path $registryPath -ErrorAction SilentlyContinue).$Name2 -eq 1){
             "Developper Mode Enabled"
         }
         else{
@@ -277,6 +277,7 @@ function Check-SideloadingStaus{
     else{
         "Disabled"
     }
+
 }
 
 Function Change-Signature {
@@ -1453,7 +1454,7 @@ $OSVersion = (Get-WmiObject -class Win32_OperatingSystem ).Version
 
 If($Major -ge 10){
     If($Build -ge 17763){
-        $WPFTextBox_Messages.Text ="Youre Windows Version supports all features of this tool."
+        $WPFTextBox_Messages.Text ="Your Windows Version supports all features of this tool."
         $WPFTextBox_Messages.Foreground = "Green"
     }
     ElseIf($Build -eq 17134){

@@ -1,4 +1,7 @@
-﻿$ScriptVersion = "1.0.4.1"
+﻿$ScriptVersion = "1.0.5.4"
+# Add required assemblies for icon
+Add-Type -AssemblyName PresentationFramework, System.Drawing, System.Windows.Forms, WindowsFormsIntegration
+
 #region GUI
 #ERASE ALL THIS AND PUT XAML BELOW between the @" "@
 $inputXML = @"
@@ -10,6 +13,9 @@ $inputXML = @"
         xmlns:local="clr-namespace:MSIX_Commander"
         mc:Ignorable="d"
         Title="MSIX Commander" Width="800" Height="600">
+    <Window.TaskbarItemInfo>
+        <TaskbarItemInfo/>
+    </Window.TaskbarItemInfo>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition/>
@@ -20,9 +26,11 @@ $inputXML = @"
             <TabItem Header="Installed">
                 <Grid Background="#FFE5E5E5">
                     <Grid.RowDefinitions>
-                        <RowDefinition/>
+                        <RowDefinition Height="107*"/>
+                        <RowDefinition Height="339*"/>
+                        <RowDefinition Height="30*"/>
                     </Grid.RowDefinitions>
-                    <ListView x:Name="ListView_MSIXPackages" Margin="0,87,0,0" VerticalAlignment="Top" HorizontalAlignment="Left" MinWidth="635" MinHeight="380">
+                    <ListView x:Name="ListView_MSIXPackages" Margin="0,23.5,0,10" HorizontalAlignment="Left" MinWidth="635" MinHeight="330" Grid.RowSpan="2" Grid.Row="1">
                         <ListView.View>
                             <GridView>
                                 <GridViewColumn Header="Name" DisplayMemberBinding ="{Binding Name}"/>
@@ -43,6 +51,11 @@ $inputXML = @"
                     <Label x:Name="Label_Installed" Content="Work with installed MSIX Packages" HorizontalAlignment="Left" FontWeight="Bold" Height="26" VerticalAlignment="Top" Margin="-2,0,0,0"/>
                     <Button x:Name="Button_Uninstall" Content="Uninstall" HorizontalAlignment="Left" Margin="357,58,0,0" VerticalAlignment="Top" Width="114"/>
                     <Button x:Name="Button_Open_Manifest" Content="Open Manifest" HorizontalAlignment="Left" Margin="238,58,0,0" VerticalAlignment="Top" Width="114"/>
+                    <Button x:Name="Button_OpenCMD" Content="Open CMD" HorizontalAlignment="Left" VerticalAlignment="Top" Width="114" Margin="0,105,0,0" Grid.RowSpan="2"/>
+                    <Button x:Name="Button_OpenRegedit" Content="Open Regedit*" HorizontalAlignment="Left" VerticalAlignment="Top" Width="114" Margin="119,105,0,0" Grid.RowSpan="2"/>
+                    <Button x:Name="Button_OpenNotepad" Content="Open Notepad" HorizontalAlignment="Left" VerticalAlignment="Top" Width="114" Margin="238,105,0,0" Grid.RowSpan="2"/>
+                    <TextBlock x:Name="TextBlock_OpenTools" HorizontalAlignment="Left" TextWrapping="Wrap" Text="Here you can open the following tools inside the MSIX container. This requires developer mode to be enabled on your machine." VerticalAlignment="Top" Margin="0,86,0,0"/>
+                    <TextBlock x:Name="TextBlock_OpenTools_Copy" HorizontalAlignment="Left" TextWrapping="Wrap" VerticalAlignment="Top" Margin="357,106,0,0" Height="21" Width="382" Text="Notepad is a workaround since explorer is not working right now." Grid.RowSpan="2"/>
                 </Grid>
             </TabItem>
             <TabItem x:Name="Tab_certificate" Header="Certificate">
@@ -109,9 +122,10 @@ $inputXML = @"
                     <Button x:Name="Button_StopServices" Content="Stop services*" Margin="307,186,0,0" VerticalAlignment="Top" Height="33" HorizontalAlignment="Left" Width="164"/>
                     <Label x:Name="Label_Sideloading" Content="Change Sideloading Status" HorizontalAlignment="Left" VerticalAlignment="Top" FontWeight="Bold" Margin="0,225,0,0"/>
                     <TextBlock x:Name="TexBlock_Sideloading" HorizontalAlignment="Left" Margin="6,251,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="22" Width="758"><Run Text="Here you can enable or disable sideloading."/><Run Text=" "/><Run Text="This requires Administrator rights."/><LineBreak/><Run Text=""/><LineBreak/><Run Text=""/></TextBlock>
-                    <Button x:Name="Button_Change_SidelaodingStatus" Content="" Margin="307,304,0,0" VerticalAlignment="Top" Height="33" HorizontalAlignment="Left" Width="164"/>
+                    <Button x:Name="Button_Change_SidelaodingStatus" Content="" Margin="161,300,0,0" VerticalAlignment="Top" Height="33" HorizontalAlignment="Left" Width="164"/>
                     <TextBlock x:Name="TexBlock_CurrentSideloading" HorizontalAlignment="Left" Margin="6,273,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="22" Width="179"><Span Foreground="Black" FontSize="12" FontFamily="Segoe UI"><Run Text="The current sideloading status is:"/></Span><Span Foreground="Black" FontSize="12" FontFamily="Segoe UI"><LineBreak/></Span><LineBreak/><Run Text=""/><LineBreak/><Run Text=""/></TextBlock>
                     <TextBlock x:Name="TexBlock_CurrentSideloading_Status" HorizontalAlignment="Left" Margin="190,273,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="22" Width="179" FontWeight="Bold" Foreground="#FFFF0600"/>
+                    <Button x:Name="Button_EnableDevMode" Content="Enable Developer Mode*" Margin="438,300,0,0" VerticalAlignment="Top" Height="33" HorizontalAlignment="Left" Width="164"/>
                 </Grid>
             </TabItem>
             <TabItem x:Name="Tab_EditManifest" Header="EditManifest">
@@ -214,6 +228,73 @@ Get-FormVariables
 #region Functions
 
 
+Function Open-Tool{
+
+    param(
+        [Parameter(Mandatory=$true)]
+        [String]
+        $tool
+    )
+    $SelectedMSIX = $null
+    $SelectedMSIX = $WPFListView_MSIXPackages.SelectedItem.Name
+    $SelectedMSIXInstallLocation= $WPFListView_MSIXPackages.SelectedItem.InstallLocation
+
+    $SelectedMSIXInstallPublisherHash = $SelectedMSIXInstallLocation.Substring($SelectedMSIXInstallLocation.LastIndexOf("_")+1,$SelectedMSIXInstallLocation.Length -$SelectedMSIXInstallLocation.LastIndexOf("_")-1)
+    $UserDataLocation = "$env:LOCALAPPDATA\Packages\$SelectedMSIX"+"_"+$SelectedMSIXInstallPublisherHash
+
+
+    If($MSIXData){
+        IF($SelectedMSIX){
+            try{
+                $Package = Get-AppxPackage -Name $SelectedMSIX
+                $Manifest = Get-AppxPackageManifest -package $Package
+                $AppId = $Manifest.package.Applications.Application.Id
+                Invoke-CommandInDesktopPackage -PackageFamilyName $Package.PackageFamilyName  -PreventBreakaway -command $tool -AppId MSIXCommander
+                $WPFTextBox_Messages.Text =  "Opend $tool inside MSIX $SelectedMSIX"
+                $WPFTextBox_Messages.Foreground = "Black"
+            }
+            catch{
+                $ErrorMessage = $_.Exception.Message
+                $WPFTextBox_Messages.Text =  ("Couldn't opend $tool inside MSIX $SelectedMSIX / $ErrorMessage")
+                $WPFTextBox_Messages.Foreground = "Red"
+            }
+        }
+        else{
+            $WPFTextBox_Messages.Text =  "You need to select a MSIX first"
+            $WPFTextBox_Messages.Foreground = "Black"
+        }
+    }
+    else{
+        $WPFTextBox_Messages.Text = "You need to get the Software first and then select an MSIX!"
+        $WPFTextBox_Messages.Foreground = "Black"
+    }
+}
+
+
+Function Enable-DeveloperMode{
+
+    try{
+        $registryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" 
+        $Name1 = "AllowAllTrustedApps"
+        $Name2 = "AllowDevelopmentWithoutDevLicense"
+        $value1 = "1"
+        $value2 = "1"
+
+        New-ItemProperty -Path $registryPath -Name $name1 -Value $value1 -PropertyType DWORD -Force -ErrorAction Stop
+        New-ItemProperty -Path $registryPath -Name $name2 -Value $value2 -PropertyType DWORD -Force -ErrorAction Stop
+
+        $WPFTextBox_Messages.Text =  ("Developer Mode succesfully enablead")
+        $WPFTextBox_Messages.Foreground = "Green"
+
+    }
+    catch{
+        $ErrorMessage = $_.Exception.Message
+        $WPFTextBox_Messages.Text =  ("Couldn't enable Developer Mode / $ErrorMessage")
+        $WPFTextBox_Messages.Foreground = "Red"
+    }
+}
+
+
 Function Enable-Sideloading{
 
     try{
@@ -268,7 +349,7 @@ function Check-SideloadingStaus{
 
     If((Get-ItemProperty -Path $registryPath -ErrorAction SilentlyContinue).$Name1 -eq 1){
         If((Get-ItemProperty -Path $registryPath -ErrorAction SilentlyContinue).$Name2 -eq 1){
-            "Developper Mode Enabled"
+            "Developer Mode Enabled"
         }
         else{
             "Enabled"
@@ -1119,6 +1200,7 @@ Function Get-InstalledMSIX{
     }
 
     ForEach($InstalledApp in $InstalledApps){
+        $Dependencies = ""
         $DependenciesCount = 0
         $Name = $InstalledApp.Name
         $Publisher = $InstalledApp.Publisher
@@ -1147,7 +1229,7 @@ Function Get-InstalledMSIX{
     }
 
 
-    $WPFListView_MSIXPackages.ItemsSource = $MSIXData
+    $WPFListView_MSIXPackages.ItemsSource = ($MSIXData | Sort-Object -Property Name)
     $WPFTextBox_Messages.Text =  "Got the list of Appx/MSIX installed software"
     $WPFTextBox_Messages.Foreground = "Black"
 
@@ -1422,8 +1504,16 @@ Function Select-File {
 
 #region Initialize
 
+$RunMode = "Script"
 $ThisScriptParentPath = $MyInvocation.MyCommand.Path -replace $myInvocation.MyCommand.Name,""
 $ThisScriptName = $myInvocation.MyCommand.Name
+
+#If the Script gets executed as EXE we need another way to get ThisScriptParentPath
+If(-not($script:ThisScriptParentPath)){
+    $Script:ThisScriptParentPath = [System.Diagnostics.Process]::GetCurrentProcess() | Select-Object -ExpandProperty Path | Split-Path
+    $RunMode = "EXE"
+}
+
 
 #Set Version
 $WPFLabel_Version.Content = "Version: $ScriptVersion"
@@ -1485,6 +1575,36 @@ else{
 }
 
 
+#Checkthe script is executed within ISE
+If(($host.name).Contains("ISE")){
+    $ISEMode=$true
+}
+else{
+    $ISEMode=$false
+}
+
+
+#Do the Icon Stuff
+If($RunMode -eq "Script"){
+
+    # here's the base64 string of the image 
+    $base64 = "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"
+ 
+    # Create a streaming image by streaming the base64 string to a bitmap streamsource
+    $bitmap = New-Object System.Windows.Media.Imaging.BitmapImage
+    $bitmap.BeginInit()
+    $bitmap.StreamSource = [System.IO.MemoryStream][System.Convert]::FromBase64String($base64)
+    $bitmap.EndInit()
+    $bitmap.Freeze()
+  
+    # This is the icon in the upper left hand corner of the app
+    $Form.Icon = $bitmap
+ 
+    # This is the toolbar icon and description
+    $Form.TaskbarItemInfo.Overlay = $bitmap
+    $Form.TaskbarItemInfo.Description = $Form.Title
+}
+
 
 #endregion
 
@@ -1519,6 +1639,18 @@ $WPFButton_OpenUserData.Add_Click({
 
 $WPFButton_Uninstall.Add_Click({
     uninstall-App
+})
+
+$WPFButton_OpenRegedit.Add_Click({
+    Open-Tool -tool "regedit.exe"
+})
+
+$WPFButton_OpenNotepad.Add_Click({
+    Open-Tool -tool "notepad.exe"
+})
+
+$WPFButton_OpenCMD.Add_Click({
+    Open-Tool -tool "cmd.exe"
 })
 
 #Edit Manifest Actions
@@ -1783,10 +1915,57 @@ $WPFButton_Change_SidelaodingStatus.add_click({
 })
 
 
+$WPFButton_EnableDevMode.add_click({
+
+    Enable-DeveloperMode
+
+    $CurrentSideloadingStaus = Check-SideloadingStaus
+
+    $WPFTexBlock_CurrentSideloading_Status.Text = $CurrentSideloadingStaus
+
+    If($CurrentSideloadingStaus.Contains("Enabled")){
+        $WPFTexBlock_CurrentSideloading_Status.Foreground = "#FF0A7211" #Green
+        $WPFButton_Change_SidelaodingStatus.Content = "Disable*"
+    }else{
+        $WPFTexBlock_CurrentSideloading_Status.Foreground = "#FFFF0600" #Red
+        $WPFButton_Change_SidelaodingStatus.Content = "Enable*"
+    }
+
+
+})
+
+
 #endregion
 
 
 #===========================================================================
 # Shows the form
 #===========================================================================
-$Form.ShowDialog() | out-null
+
+If($ISEMode){
+
+    $Form.ShowDialog() | out-null
+}
+else{
+
+    $Form.Add_Closing({[System.Windows.Forms.Application]::Exit(); Stop-Process $pid})
+
+    # Make PowerShell Disappear
+    $windowcode = '[DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);' 
+    $asyncwindow = Add-Type -MemberDefinition $windowcode -name Win32ShowWindowAsync -namespace Win32Functions -PassThru 
+    $null = $asyncwindow::ShowWindowAsync((Get-Process -PID $pid).MainWindowHandle, 0) 
+
+
+    # Allow input to window for TextBoxes, etc
+    [System.Windows.Forms.Integration.ElementHost]::EnableModelessKeyboardInterop($Form)
+
+    $Form.Show() | out-null
+ 
+    # This makes it pop up
+    $Form.Activate() | out-null
+ 
+    # Create an application context for it to all run within. 
+    # This helps with responsiveness and threading.
+    $appContext = New-Object System.Windows.Forms.ApplicationContext 
+    [void][System.Windows.Forms.Application]::Run($appContext)
+}

@@ -1,4 +1,4 @@
-﻿$ScriptVersion = "1.0.5.4"
+﻿$ScriptVersion = "1.0.6"
 # Add required assemblies for icon
 Add-Type -AssemblyName PresentationFramework, System.Drawing, System.Windows.Forms, WindowsFormsIntegration
 
@@ -77,12 +77,18 @@ $inputXML = @"
                     <TextBox x:Name="TextBox_NewCertFileName" HorizontalAlignment="Left" Height="26" Margin="464,91,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="254"/>
                     <Label x:Name="Label_CreatCertFolderName" Content="Export Folder:" HorizontalAlignment="Left" Margin="0,132,0,0" VerticalAlignment="Top"/>
                     <TextBox x:Name="TextBox_NewCertFolderName" Height="26" Margin="96,132,64,0" TextWrapping="Wrap" VerticalAlignment="Top"/>
-                    <Label x:Name="Label_ImportCert" Content="Import a selfsigned cert*" HorizontalAlignment="Left" VerticalAlignment="Top" FontWeight="Bold" Margin="-2,231,0,0"/>
-                    <Button x:Name="Button_InstallCert" Content="Install cert*" Margin="326,333,0,0" VerticalAlignment="Top" Height="33" Width="128" HorizontalAlignment="Left"/>
-                    <Button x:Name="Button_SelectCertToImport" Content="Browse" Margin="0,292,7,0" VerticalAlignment="Top" Height="26" HorizontalAlignment="Right" Width="48"/>
-                    <Label x:Name="Label_SelectedCert" Content="Selected Cert:" HorizontalAlignment="Left" Margin="3,292,0,0" VerticalAlignment="Top"/>
-                    <TextBox x:Name="TextBox_SelectedCert" Height="26" Margin="100,292,61,0" TextWrapping="Wrap" VerticalAlignment="Top"/>
-                    <TextBlock x:Name="TexBlock_InstallCert" HorizontalAlignment="Left" Margin="3,257,0,0" TextWrapping="Wrap" Text="This will install the cert to the TrustedPeople Store of the local machine. This requires Administrator rights." VerticalAlignment="Top" Height="27" Width="758"/>
+                    <Label x:Name="Label_ImportCert" Content="Import a selfsigned cert from a *.cert File*" HorizontalAlignment="Left" VerticalAlignment="Top" FontWeight="Bold" Margin="-2,203,0,0"/>
+                    <Button x:Name="Button_InstallCert" Content="Install cert*" Margin="326,285,0,0" VerticalAlignment="Top" Height="33" Width="128" HorizontalAlignment="Left"/>
+                    <Button x:Name="Button_SelectCertToImport" Content="Browse" Margin="0,250,7,0" VerticalAlignment="Top" Height="26" HorizontalAlignment="Right" Width="48"/>
+                    <Label x:Name="Label_SelectedCert" Content="Selected Cert:" HorizontalAlignment="Left" Margin="3,250,0,0" VerticalAlignment="Top"/>
+                    <TextBox x:Name="TextBox_SelectedCert" Height="26" Margin="100,250,61,0" TextWrapping="Wrap" VerticalAlignment="Top"/>
+                    <TextBlock x:Name="TexBlock_InstallCert" HorizontalAlignment="Left" Margin="3,229,0,0" TextWrapping="Wrap" Text="This will install the cert to the TrustedPeople Store of the local machine. This requires Administrator rights." VerticalAlignment="Top" Height="27" Width="758"/>
+                    <Label x:Name="Label_ImportCertFromMSIX" Content="Import a selfsigned cert from a *.MSIX File*" HorizontalAlignment="Left" VerticalAlignment="Top" FontWeight="Bold" Margin="-2,319,0,0"/>
+                    <Button x:Name="Button_InstallCertFromMSIX" Content="Install cert*" Margin="326,401,0,0" VerticalAlignment="Top" Height="33" Width="128" HorizontalAlignment="Left"/>
+                    <Button x:Name="Button_SelectCertToImportFromMSIX" Content="Browse" Margin="0,366,7,0" VerticalAlignment="Top" Height="26" HorizontalAlignment="Right" Width="48"/>
+                    <Label x:Name="Label_SelectedCertFromMSIX" Content="Selected MSIX:" HorizontalAlignment="Left" Margin="3,366,0,0" VerticalAlignment="Top"/>
+                    <TextBox x:Name="TextBox_SelectedCertFromMSIX" Height="26" Margin="100,366,61,0" TextWrapping="Wrap" VerticalAlignment="Top"/>
+                    <TextBlock x:Name="TexBlock_InstallCertFromMSIX" HorizontalAlignment="Left" Margin="3,345,0,0" TextWrapping="Wrap" Text="This will install the cert ditrectly from an MSIX to the TrustedPeople Store of the local machine. This requires Administrator rights." VerticalAlignment="Top" Height="27" Width="758"/>
                 </Grid>
             </TabItem>
             <TabItem x:Name="Tab_Testing" Header="Testing">
@@ -227,7 +233,6 @@ Get-FormVariables
 
 #region Functions
 
-
 Function Open-Tool{
 
     param(
@@ -249,7 +254,7 @@ Function Open-Tool{
                 $Package = Get-AppxPackage -Name $SelectedMSIX
                 $Manifest = Get-AppxPackageManifest -package $Package
                 $AppId = $Manifest.package.Applications.Application.Id
-                Invoke-CommandInDesktopPackage -PackageFamilyName $Package.PackageFamilyName  -PreventBreakaway -command $tool -AppId MSIXCommander
+                Invoke-CommandInDesktopPackage -PackageFamilyName $Package.PackageFamilyName  -PreventBreakaway -command $tool -AppId $AppId
                 $WPFTextBox_Messages.Text =  "Opend $tool inside MSIX $SelectedMSIX"
                 $WPFTextBox_Messages.Foreground = "Black"
             }
@@ -269,7 +274,6 @@ Function Open-Tool{
         $WPFTextBox_Messages.Foreground = "Black"
     }
 }
-
 
 Function Enable-DeveloperMode{
 
@@ -293,7 +297,6 @@ Function Enable-DeveloperMode{
         $WPFTextBox_Messages.Foreground = "Red"
     }
 }
-
 
 Function Enable-Sideloading{
 
@@ -339,7 +342,6 @@ Function Disable-Sideloading{
         $WPFTextBox_Messages.Foreground = "Red"
     }
 }
-
 
 function Check-SideloadingStaus{
 
@@ -1082,6 +1084,7 @@ Function uninstall-App{
             try{
                 Get-AppxPackage | where InstallLocation -EQ $SelectedMSIXInstallLocation | Remove-AppxPackage
                 Get-InstalledMSIX
+                Use-Filter
                 $WPFTextBox_Messages.Text =  "Uninstalled the MSIX $SelectedMSIX"
                 $WPFTextBox_Messages.Foreground = "Black"
             }
@@ -1186,10 +1189,11 @@ Function Get-InstalledMSIX{
 
         $Script:MSIXData = ""
         $Script:MSIXData = @()
+        $InstalledApps = @()
 
 
     If($WPFCheckBox_EnterpriseSigned.IsChecked){
-        $InstalledApps = Get-AppxPackage | Where-object SignatureKind -EQ "Developer"  |Select-Object -Property Name,Version,Publisher,InstallLocation,Dependencies
+        $InstalledApps += Get-AppxPackage | Where-object SignatureKind -EQ "Developer"  |Select-Object -Property Name,Version,Publisher,InstallLocation,Dependencies
         $InstalledApps += Get-AppxPackage | Where-object SignatureKind -EQ "Enterprise"  |Select-Object -Property Name,Version,Publisher,InstallLocation,Dependencies  
 
     }
@@ -1226,12 +1230,20 @@ Function Get-InstalledMSIX{
         $SoftwareDetail | Add-Member -Name "Dependencies" -MemberType NoteProperty -Value $Dependencies
 
         $Script:MSIXData += $SoftwareDetail
+
+        
     }
 
 
-    $WPFListView_MSIXPackages.ItemsSource = ($MSIXData | Sort-Object -Property Name)
-    $WPFTextBox_Messages.Text =  "Got the list of Appx/MSIX installed software"
-    $WPFTextBox_Messages.Foreground = "Black"
+    If ($Script:MSIXData.count -gt 1){
+        $sortedlist = ($Script:MSIXData | Sort-Object -Property Name)
+    }
+    else{
+        $sortedlist = @($Script:MSIXData,"")
+    }
+
+
+    $WPFListView_MSIXPackages.ItemsSource = $sortedlist
 
 }
 
@@ -1260,6 +1272,60 @@ Function Use-Filter{
         $WPFTextBox_Messages.Text = "You need to get the Software first!"
         $WPFTextBox_Messages.Foreground = "Black"
     }
+}
+
+Function Import-CertToTrustedPeopleFromMSIX{
+
+    #Check if user is Admin
+    If ([bool](([System.Security.Principal.WindowsIdentity]::GetCurrent()).groups -match "S-1-5-32-544")) {
+        #If he is an Admin
+
+
+
+        $MSIXToInstallCertFrom = $WPFTextBox_SelectedCertFromMSIX.Text
+        If(-!$MSIXToInstallCertFrom){
+            $WPFTextBox_Messages.Text ="No MSIX provided"
+            $WPFTextBox_Messages.Foreground = "RED"
+            Return
+        }
+        else{
+            If(Test-Path -Path $MSIXToInstallCertFrom){
+
+                try{
+
+                    $CertContent= (Get-AuthenticodeSignature -FilePath $MSIXToInstallCertFrom).SignerCertificate
+                    $CertToInstall = "$env:temp\temp.cer"
+                    Export-Certificate -Cert $CertContent -FilePath $CertToInstall -Force
+                    Import-Certificate -FilePath $CertToInstall -CertStoreLocation cert:\LocalMachine\TrustedPeople
+                    Remove-Item -Path $CertToInstall -Force
+
+                    $WPFTextBox_Messages.Text ="Succesfully installed Cert to LocalMachine\TrustedPeople from $MSIXToInstallCertFrom"
+                    $WPFTextBox_Messages.Foreground = "Black"
+
+                }
+                catch{
+                    $ErrorMessage = $_.Exception.Message
+
+                    $WPFTextBox_Messages.Text ="Failed to install the cert File / $ErrorMessage"
+                    $WPFTextBox_Messages.Foreground = "RED"
+                }
+
+            }
+            else{
+                $WPFTextBox_Messages.Text ="The Path $MSIXToInstallCertFrom is not valid"
+                $WPFTextBox_Messages.Foreground = "RED"
+                Return
+            }
+
+        }
+     }
+    else{
+         #If he is NO Admin
+        $WPFTextBox_Messages.Text = "You are not an administrator. This Action requieres the tool to be run as an administrator!"
+        $WPFTextBox_Messages.Foreground = "Red"
+        Return
+    }
+
 }
 
 Function Import-CertToTrustedPeople{
@@ -1619,6 +1685,10 @@ $WPFButton_GetSoftware.Add_Click({
         $WPFListView_MSIXPackages.Items.Refresh()
     }
     Get-InstalledMSIX
+    Use-Filter
+    $WPFTextBox_Messages.Text =  "Got the list of Appx/MSIX installed software"
+    $WPFTextBox_Messages.Foreground = "Black"
+
 })
 
 $WPFButton_Filter.Add_Click({
@@ -1787,6 +1857,24 @@ $WPFButton_SelectCertToImport.Add_Click({
 $WPFButton_InstallCert.Add_Click({
     Import-CertToTrustedPeople
 })
+
+
+$WPFButton_SelectCertToImportFromMSIX.Add_Click({
+
+    $WPFTextBox_SelectedCertFromMSIX.Text = $null
+
+
+    $SelectedMSIX = Select-MSIX
+
+    $WPFTextBox_SelectedCertFromMSIX.Text = $SelectedMSIX
+
+
+})
+
+$WPFButton_InstallCertFromMSIX.Add_Click({
+    Import-CertToTrustedPeopleFromMSIX
+})
+
 
 #Test Actions
 

@@ -12,3 +12,4 @@ https://github.com/bergerpascal/MSIX_Commander/releases
 - Windows 10 x64 1803
 - Windows 10 x64 1809
 - Windows 10 x64 1903
+- Windows 10 x64 1909

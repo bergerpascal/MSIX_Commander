@@ -1,4 +1,4 @@
-﻿$ScriptVersion = "1.0.6"
+﻿$ScriptVersion = "1.0.7"
 # Add required assemblies for icon
 Add-Type -AssemblyName PresentationFramework, System.Drawing, System.Windows.Forms, WindowsFormsIntegration
 
@@ -190,6 +190,18 @@ $inputXML = @"
                     <Button x:Name="Button_ChangeSignature_SelectFolder" Content="Select Folder" Margin="424,212,0,0" VerticalAlignment="Top" Height="26" HorizontalAlignment="Left" Width="124"/>
                 </Grid>
             </TabItem>
+            <TabItem x:Name="Tab_AppAttach" Header="AppAttach">
+                <Grid Background="#FFE5E5E5" Margin="0,0,0,-183">
+                    <Button x:Name="Button_AppAttachConvertToVHD_Convert" Content="Convert to VHD*" Margin="325,124,0,0" VerticalAlignment="Top" Height="26" HorizontalAlignment="Left" Width="128"/>
+                    <Label x:Name="Label_AppAttachConvertToVHD_FileOrFolder" Content="What to convert to VHD" HorizontalAlignment="Left" VerticalAlignment="Top" FontWeight="Bold" Margin="-2,3,0,0"/>
+                    <TextBlock x:Name="TexBlock_AppAttachConvertToVHD_FileOrFolder" HorizontalAlignment="Left" Margin="3,29,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="37" Width="757"><Run Text="This will let you select one single MSIX file or a folder containing MSIX Files"/><Run Text="."/><Run Text=" "/><Run Text="If you select a folder, the tool will also look in it's subfolders for MSIX Files."/></TextBlock>
+                    <Button x:Name="Button_AppAttachConvertToVHD_SingelFile_Browse" Content="Select single MSIX" Margin="233,92,0,0" VerticalAlignment="Top" Height="26" HorizontalAlignment="Left" Width="113"/>
+                    <Label x:Name="Label_AppAttachConvertToVHD_SingelFile_MSIX" Content="File or Folder:" HorizontalAlignment="Left" Margin="-2,63,0,0" VerticalAlignment="Top"/>
+                    <TextBox x:Name="TextBox_AppAttachConvertToVHD_SingelFile_SelectedMSIX" Height="20" Margin="104,67,71,0" TextWrapping="Wrap" VerticalAlignment="Top" MaxHeight="20"/>
+                    <Button x:Name="Button_AppAttachConvertToVHD_SelectFolder" Content="Select Folder" Margin="424,92,0,0" VerticalAlignment="Top" Height="26" HorizontalAlignment="Left" Width="124"/>
+
+                </Grid>
+            </TabItem>
         </TabControl>
         <Label x:Name="Label_AdminRights" Content="*Those actions require the tool to be executed as an administrator" Margin="0,0,375,-1.5" Height="26" VerticalAlignment="Bottom"/>
         <Label x:Name="Label_Version" Content="Version:" HorizontalAlignment="Right" Margin="0,0,0,0.5" RenderTransformOrigin="2.747,0.588" Height="24" VerticalAlignment="Bottom"/>
@@ -230,8 +242,436 @@ Get-FormVariables
 
 #endregion
 
-
 #region Functions
+
+Function ConvertTo-VHD {
+
+    param(
+        [Parameter(Mandatory=$true)]
+        [String]
+        $Path
+    )
+    #region variables
+    $msixmgrURL = "https://aka.ms/msixmgr"
+    $TempFolder= "$env:TEMP\_CreatAppAttachMSIX"
+    $MsixmgrZip = "$env:TEMP\_msixmgr.zip"
+    $MsixmgrFolder = "$TempFolder\_msixmgr"
+    $Extractfolder = "$env:SystemDrive\TempExtractAppAttach"
+    If([Environment]::Is64BitOperatingSystem){
+        $MsixmgrExe = "$MsixmgrFolder\x64\msixmgr.exe"
+    }
+    else{
+        $MsixmgrExe = "$MsixmgrFolder\x86\msixmgr.exe"
+
+    }
+
+    #endregion
+
+    $Scriptblock1Stage = {
+#MSIX app attach staging sample
+
+
+#region variables
+
+$ScriptParentPath = $MyInvocation.MyCommand.Path -replace $myInvocation.MyCommand.Name,""
+
+$vhdSrc = (get-ChildItem -Path $ScriptParentPath -Filter *.vhd)[0].FullName
+
+Write-Host "VHD $vhdSrc found"
+
+
+$JSONFileName = "AppAttachInfo.json"
+
+$msixJunction = "$Env:Temp\AppAttach\"
+
+#endregion
+
+#region mountvhd
+
+try{
+    $VHDFolder = (Get-Item $vhdSrc).DirectoryName
+    $JsonFile = "$VHDFolder\$JSONFileName"
+
+    If(Test-Path -Path $JsonFile){
+        $Json = get-content $JsonFile |ConvertFrom-Json
+
+        $MountedVHD = Mount-VHD -Path $vhdSrc -NoDriveLetter -ReadOnly
+
+        $msixDest = $Json.PartitionPath
+        $packageName = $Json.PackageName
+
+        $parentFolder = $Json.ParentFolder
+        $parentFolder = "\" + $parentFolder + "\"
+    }
+    else{
+        Write-Host "$JsonFile not found"
+    }
+}
+catch
+{
+    Write-Host ("Mounting of " + $vhdSrc + " has failed!") -BackgroundColor Red
+}
+
+#endregion
+
+#region makelink
+
+if (!(Test-Path $msixJunction)){
+    md $msixJunction
+}
+
+$msixJunction = $msixJunction + $packageName
+
+cmd.exe /c mklink /j $msixJunction $msixDest
+
+#endregion
+
+#region stage
+
+[Windows.Management.Deployment.PackageManager,Windows.Management.Deployment,ContentType=WindowsRuntime]| Out-Null
+
+Add-Type -AssemblyName System.Runtime.WindowsRuntime
+
+$asTask = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where {
+$_.ToString() -eq 'System.Threading.Tasks.Task`1[TResult] AsTask[TResult,TProgress](Windows.Foundation.IAsyncOperationWithProgress`2[TResult,TProgress])'
+})[0]
+
+$asTaskAsyncOperation =
+$asTask.MakeGenericMethod([Windows.Management.Deployment.DeploymentResult],
+[Windows.Management.Deployment.DeploymentProgress])
+
+$packageManager = [Windows.Management.Deployment.PackageManager]::new()
+
+$path = $msixJunction + $parentFolder + $packageName # needed if we do the pbisigned.vhd
+
+$path = ([System.Uri]$path).AbsoluteUri
+
+$asyncOperation = $packageManager.StagePackageAsync("$path", $null, "StageInPlace")
+
+$task = $asTaskAsyncOperation.Invoke($null, @($asyncOperation))
+
+$task.Exception
+$task.Status
+
+#endregion
+
+
+
+
+}
+
+    $Scriptblock2Register = {
+#MSIX app attach registration sample
+
+#region variables
+
+#region variables
+
+$ScriptParentPath = $MyInvocation.MyCommand.Path -replace $myInvocation.MyCommand.Name,""
+
+$vhdSrc = (get-ChildItem -Path $ScriptParentPath -Filter *.vhd)[0].FullName
+
+Write-Host "VHD $vhdSrc found"
+
+
+$JSONFileName = "AppAttachInfo.json"
+$VHDFolder = (Get-Item $vhdSrc).DirectoryName
+$JsonFile = "$VHDFolder\$JSONFileName"
+
+
+    If(Test-Path -Path $JsonFile){
+        $Json = get-content $JsonFile |ConvertFrom-Json
+        $packageName = $Json.PackageName
+    }
+    else{
+        Write-Host "$JsonFile not found"
+    }
+
+#endregion
+
+#region register
+
+    $path = "C:\Program Files\WindowsApps\" + $packageName + "\AppxManifest.xml"
+    Add-AppxPackage -Path $path -DisableDevelopmentMode -Register
+
+
+#endregion
+
+
+    }
+
+    $Scriptblock3Deregister = {
+#MSIX app attach deregistration sample
+
+
+
+#region variables
+$ScriptParentPath = $MyInvocation.MyCommand.Path -replace $myInvocation.MyCommand.Name,""
+
+$vhdSrc = (get-ChildItem -Path $ScriptParentPath -Filter *.vhd)[0].FullName
+
+Write-Host "VHD $vhdSrc found"
+
+
+$JSONFileName = "AppAttachInfo.json"
+$VHDFolder = (Get-Item $vhdSrc).DirectoryName
+$JsonFile = "$VHDFolder\$JSONFileName"
+
+If(Test-Path -Path $JsonFile){
+    $Json = get-content $JsonFile |ConvertFrom-Json
+    $packageName = $Json.PackageName
+}
+else{
+    Write-Host "$JsonFile not found"
+}
+
+
+#endregion
+
+#region deregister
+
+Remove-AppxPackage -PreserveRoamableApplicationData $packageName
+
+#endregion
+
+    }
+
+    $Scriptblock4Destage = {
+#MSIX app attach de staging sample
+
+
+#region variables
+
+$ScriptParentPath = $MyInvocation.MyCommand.Path -replace $myInvocation.MyCommand.Name,""
+
+$vhdSrc = (get-ChildItem -Path $ScriptParentPath -Filter *.vhd)[0].FullName
+
+Write-Host "VHD $vhdSrc found"
+
+
+$JSONFileName = "AppAttachInfo.json"
+$VHDFolder = (Get-Item $vhdSrc).DirectoryName
+$JsonFile = "$VHDFolder\$JSONFileName"
+
+$msixJunction = "$Env:Temp\AppAttach\"
+
+#endregion
+
+
+
+If(Test-Path -Path $JsonFile){
+    $Json = get-content $JsonFile |ConvertFrom-Json
+    $packageName = $Json.PackageName
+    $PackageMountPoint = "$msixJunction\$packageName"
+}
+else{
+    Write-Host "$JsonFile not found"
+}
+
+
+#region deregister
+
+Remove-AppxPackage -AllUsers -Package $packageName
+
+#cd $msixJunction
+
+Remove-Item -Path $PackageMountPoint -Recurse -Force
+
+# rmdir $packageName -Force -Verbose
+
+
+Dismount-DiskImage -ImagePath $vhdSrc
+
+#endregion
+
+    }
+
+    #Check if user is Admin
+    If ([bool](([System.Security.Principal.WindowsIdentity]::GetCurrent()).groups -match "S-1-5-32-544")) {
+        #If he is an Admin
+
+        $VBS = new-object -comobject wscript.shell
+
+        $CleandUpPath = $Path.replace('"',"")
+
+        IF(Test-Path -Path $CleandUpPath){
+
+
+            If((get-item -Path $CleandUpPath).Extension.ToUpper() -eq ".MSIX"){
+                $FoundPackages = get-item -Path $CleandUpPath
+            }
+            else{
+                $FoundPackages = (Get-ChildItem -Path $CleandUpPath -Recurse -Filter "*.msix" ) | Sort-Object
+            }
+
+
+            If($FoundPackages.count -ne 1){
+                $WPFTextBox_Messages.Text =  ("In the new window, select all the MSIX packages you want to convert")
+                $WPFTextBox_Messages.Foreground = "Black"
+
+                $SelctedPackages = $FoundPackages | Select-Object -Property Name,FullName |Out-GridView -Title ("Select MSIX files you want to convert ("+$FoundPackages.count+")" ) -OutputMode Multiple | Select-Object -Property Fullname,Name
+            }
+            else{
+                $SelctedPackages = $FoundPackages
+            }
+        
+
+            If($SelctedPackages.FullName.count -ge 1){
+
+                If(-!(Test-Path $MsixmgrExe)){
+                Invoke-WebRequest -Uri $msixmgrURL -OutFile $MsixmgrZip -PassThru
+
+                    If((Test-Path $MsixmgrZip)){
+                        Expand-Archive -Path $MsixmgrZip -DestinationPath $MsixmgrFolder
+                        If(-!(Test-Path $MsixmgrExe)){
+                            $ErrorMessage = $_.Exception.Message
+                            $WPFTextBox_Messages.Text =  ("I couldn't extract the Msixmgr Tool from $MsixmgrZip" +" / $ErrorMessage")
+                            $WPFTextBox_Messages.Foreground = "Red"
+                        }
+                    }
+                    else{
+                        $ErrorMessage = $_.Exception.Message
+                        $WPFTextBox_Messages.Text =  ("I couldn't download the Msixmgr Tool from $msixmgrURL" +" / $ErrorMessage")
+                        $WPFTextBox_Messages.Foreground = "Red"
+                    }
+                }
+
+        
+                ForEach($MSIX in $SelctedPackages){
+                    $Message = ""
+
+                    try{
+
+                        $MSIXCopy = "$TempFolder\" +$MSIX.Name
+                        Copy-Item $MSIX.fullname -Destination $MSIXCopy -Force
+
+                        $MSIXObject = Get-Item $MSIXCopy
+                        $MSIXName = $MSIXObject.Name.Replace($MSIXObject.Extension,"").Replace(" ","")
+
+                        $OutPutFolder = "$TempFolder\$MSIXName"
+
+                        If(Test-path $OutPutFolder){
+                            Remove-Item $OutPutFolder -Force -Recurse
+                        }
+
+                        $ParentFolder = "PartenFolder_" +$MSIXName
+                        $VHDFile = "$OutPutFolder\$MSIXName.vhd"
+
+                        $ZipFile = Copy-Item $MSIXCopy -Destination ("$TempFolder\" +$MSIXObject.Name.Replace($MSIXObject.Extension,".ZIP")) -Force -PassThru
+
+                        If(Test-path $Extractfolder){
+                            Remove-Item $Extractfolder -Force -Recurse
+                        }
+
+                        Expand-Archive -Path $ZipFile -DestinationPath $Extractfolder -Force
+                        
+
+                        $NeededSize = (((Get-ChildItem $Extractfolder -Recurse | measure Length -s).sum) * 2)
+
+
+                        If($NeededSize -lt 6815744){
+                            $NeededSize = 6.5MB
+                        }
+                        else{
+                            $NeededSize = ([System.Math]::ceiling($NeededSize/1MB))*1024*1024
+                        }
+
+                        New-VHD -SizeBytes $NeededSize -Path $VHDFile -Dynamic -Confirm:$false
+
+                        $vhdObject = Mount-VHD $VHDFile -Passthru
+                        $disk = Initialize-Disk -Passthru -Number $vhdObject.Number -Confirm:$false 
+
+                        <#
+                        $partition = New-Partition -UseMaximumSize -DiskNumber $disk.Number |Format-Volume -FileSystem NTFS -Force
+
+                        $FreeDriveLetter = (ls function:[d-z]: -n | ?{ !(test-path $_) } | Select -Last 1).replace(":","")
+
+                        Get-Partition $disk.DiskNumber | Set-Partition -NewDriveLetter $FreeDriveLetter
+                                             
+                        $PartenFolderPath = ($FreeDriveLetter +":\$ParentFolder").tostring()
+                        New-Item -Name $ParentFolder -ItemType directory -Path  ($FreeDriveLetter +":")
+                        #>
+
+                        $Partition = New-Partition -DiskNumber $disk.Number -UseMaximumSize -AssignDriveLetter
+                        $Volume = Format-Volume -DriveLetter $Partition.DriveLetter -FileSystem NTFS -Force -Confirm:$false
+                        $PartenFolderPath = ($Partition.DriveLetter +":\$ParentFolder").tostring()
+
+
+                        $Destiantion = $PartenFolderPath
+
+                        $Result = Start-Process -FilePath $MsixmgrExe -ArgumentList ("-Unpack -packagePath ""$MSIXCopy"" -destination ""$Destiantion"" -applyacls") -Wait -PassThru -WindowStyle Hidden
+
+                        $PackageName = (Get-ChildItem -Path $Destiantion -Directory).Name
+
+                        If($PackageName){
+
+                            $AppAttachInfo = New-Object -TypeName psobject 
+
+                            $AppAttachInfo | Add-Member -MemberType NoteProperty -Name MSIXName -Value $MSIXObject.Name
+                            $AppAttachInfo | Add-Member -MemberType NoteProperty -Name PartitionPath -Value $Volume.Path
+                            $AppAttachInfo | Add-Member -MemberType NoteProperty -Name ParentFolder -Value $ParentFolder
+                            $AppAttachInfo | Add-Member -MemberType NoteProperty -Name PackageName -Value $PackageName
+                        }
+                        else{
+                            throw
+                        }
+
+                        $AppAttachInfo | ConvertTo-Json | Out-File -FilePath ("$OutPutFolder\AppAttachInfo.json")
+                                                
+
+                        $CertContent= (Get-AuthenticodeSignature -FilePath $MSIXCopy ).SignerCertificate
+                        $CertToExport = "$OutPutFolder\$MSIXName.cer"
+                        If($CertContent){
+                            Export-Certificate -Cert $CertContent -FilePath $CertToExport -Force
+                        }
+
+                        #Generate Mountig Scripts
+                        $Scriptblock1Stage.ToString() | out-file -FilePath "$OutPutFolder\1_Stage.ps1" -Force
+                        $Scriptblock2Register.ToString() | out-file -FilePath "$OutPutFolder\2_Register.ps1" -Force
+                        $Scriptblock3Deregister.ToString() | out-file -FilePath "$OutPutFolder\3_Deregister.ps1" -Force
+                        $Scriptblock4Destage.ToString() | out-file -FilePath "$OutPutFolder\4_Destage.ps1" -Force
+
+                    }catch{
+                        $ErrorMessage = $_.Exception.Message
+
+                        $WPFTextBox_Messages.Text =  ("Failed to convert MSIX " +$MSIXName +" / $ErrorMessage")
+                        $WPFTextBox_Messages.Foreground = "Red"
+
+                        $VBS.popup(("Failed to convert MSIX " +$MSIXName +"`n`n$ErrorMessage"),0,"Error",16)
+                    }
+                    Finally{
+                        #CleanUp
+                        Remove-Item $ZipFile -Force
+                        Remove-Item $Extractfolder -Force -Recurse
+                        #Get-Partition $disk.DiskNumber | Remove-Partition -Confirm:$false
+                        Dismount-VHD $VHDFile
+                        Remove-Item -Path $MSIXCopy -Force -ErrorAction SilentlyContinue
+                    }
+
+                }
+
+                $WPFTextBox_Messages.Text =  ("All selected " +$SelctedPackages.count +" Packages are converted.")
+                $WPFTextBox_Messages.Foreground = "Black"
+                explorer.exe $TempFolder
+            }
+            else{
+                $WPFTextBox_Messages.Text =  ("No MSIX packages selected")
+                $WPFTextBox_Messages.Foreground = "Red"
+            }
+        }
+        else{
+            $WPFTextBox_Messages.Text =  ("File or Folder not found $CleandUpPath")
+            $WPFTextBox_Messages.Foreground = "Red"
+        }
+    }
+    else{
+         #If he is NO Admin
+        $WPFTextBox_Messages.Text = "You are not an administrator. This Action requieres the tool to be run as an administrator!"
+        $WPFTextBox_Messages.Foreground = "Red"
+        Return
+    }
+
+}
 
 Function Open-Tool{
 
@@ -2020,6 +2460,47 @@ $WPFButton_EnableDevMode.add_click({
     }
 
 
+})
+
+#AppAttach Actions
+
+
+$WPFButton_AppAttachConvertToVHD_SingelFile_Browse.Add_Click({
+
+    $SelectedFile = Select-File -FileType "msix"
+    If($SelectedFile){
+        $WPFTextBox_AppAttachConvertToVHD_SingelFile_SelectedMSIX.Text = $SelectedFile
+    }
+})
+
+$WPFButton_AppAttachConvertToVHD_SelectFolder.Add_Click({
+    $SelectedFolder = $null
+    $SelectedFolder = Select-Folder
+
+    If($SelectedFolder){
+        $WPFTextBox_Messages.Text ="The Folder $SelectedFolder was selected"
+        $WPFTextBox_AppAttachConvertToVHD_SingelFile_SelectedMSIX.Text = $SelectedFolder
+        $WPFTextBox_Messages.Foreground = "Black"
+
+    }
+    else{
+        $WPFTextBox_Messages.Text ="No Folder was selected"
+        $WPFTextBox_Messages.Foreground = "DarkOrange"
+
+    }
+})
+
+
+$WPFButton_AppAttachConvertToVHD_Convert.Add_Click({
+
+    $SelectedPath = $WPFTextBox_AppAttachConvertToVHD_SingelFile_SelectedMSIX.Text
+    If($SelectedPath){
+        ConvertTo-VHD -Path $SelectedPath
+    }
+    else{
+        $WPFTextBox_Messages.Text = "Nothing selected!"
+        $WPFTextBox_Messages.Foreground = "Red"
+    }
 })
 
 

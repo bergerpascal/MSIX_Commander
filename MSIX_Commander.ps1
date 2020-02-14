@@ -1,4 +1,4 @@
-﻿$ScriptVersion = "1.0.7"
+﻿$ScriptVersion = "1.0.7.2"
 # Add required assemblies for icon
 Add-Type -AssemblyName PresentationFramework, System.Drawing, System.Windows.Forms, WindowsFormsIntegration
 
@@ -494,6 +494,11 @@ Dismount-DiskImage -ImagePath $vhdSrc
 
         $CleandUpPath = $Path.replace('"',"")
 
+
+        If(!-(Test-Path $TempFolder)){
+            New-Item $TempFolder -ItemType directory
+        }
+
         IF(Test-Path -Path $CleandUpPath){
 
 
@@ -519,7 +524,7 @@ Dismount-DiskImage -ImagePath $vhdSrc
             If($SelctedPackages.FullName.count -ge 1){
 
                 If(-!(Test-Path $MsixmgrExe)){
-                Invoke-WebRequest -Uri $msixmgrURL -OutFile $MsixmgrZip -PassThru
+                    Invoke-WebRequest -Uri $msixmgrURL -OutFile $MsixmgrZip -PassThr
 
                     If((Test-Path $MsixmgrZip)){
                         Expand-Archive -Path $MsixmgrZip -DestinationPath $MsixmgrFolder
@@ -527,12 +532,14 @@ Dismount-DiskImage -ImagePath $vhdSrc
                             $ErrorMessage = $_.Exception.Message
                             $WPFTextBox_Messages.Text =  ("I couldn't extract the Msixmgr Tool from $MsixmgrZip" +" / $ErrorMessage")
                             $WPFTextBox_Messages.Foreground = "Red"
+                            Return
                         }
                     }
                     else{
                         $ErrorMessage = $_.Exception.Message
                         $WPFTextBox_Messages.Text =  ("I couldn't download the Msixmgr Tool from $msixmgrURL" +" / $ErrorMessage")
                         $WPFTextBox_Messages.Foreground = "Red"
+                        Return
                     }
                 }
 
@@ -553,6 +560,7 @@ Dismount-DiskImage -ImagePath $vhdSrc
                         If(Test-path $OutPutFolder){
                             Remove-Item $OutPutFolder -Force -Recurse
                         }
+                        new-item -Path $OutPutFolder -ItemType Directory
 
                         $ParentFolder = "PartenFolder_" +$MSIXName
                         $VHDFile = "$OutPutFolder\$MSIXName.vhd"
@@ -576,30 +584,79 @@ Dismount-DiskImage -ImagePath $vhdSrc
                             $NeededSize = ([System.Math]::ceiling($NeededSize/1MB))*1024*1024
                         }
 
-                        New-VHD -SizeBytes $NeededSize -Path $VHDFile -Dynamic -Confirm:$false
+                        $DiskpartFailed = $false
+                        $NeededSize = ([math]::round($NeededSize /1mb)) +21
 
-                        $vhdObject = Mount-VHD $VHDFile -Passthru
-                        $disk = Initialize-Disk -Passthru -Number $vhdObject.Number -Confirm:$false 
+                        $ArgumentCreateVdisk = "create vdisk file=""$VHDFile"" maximum=$NeededSize type=expandable"
+                        $ArgumentCreateVolume = "select vdisk file=""$VHDFile""
+                        attach vdisk
+                        create partition primary
+                        format fs=ntfs
+                        assign
+                        detail"
 
-                        <#
-                        $partition = New-Partition -UseMaximumSize -DiskNumber $disk.Number |Format-Volume -FileSystem NTFS -Force
+                        $DiskPartSrciptFileCreateVHD ="$TempFolder\DiskpartCreateVHD.txt"
+                        $DiskPartSrciptFileCreateVolume ="$TempFolder\DiskpartCreateVolume.txt"
 
-                        $FreeDriveLetter = (ls function:[d-z]: -n | ?{ !(test-path $_) } | Select -Last 1).replace(":","")
+                        $ArgumentCreateVdisk | Out-File -FilePath $DiskPartSrciptFileCreateVHD -Force -NoNewline -NoClobber -Encoding utf8
+                        $ArgumentCreateVolume | Out-File -FilePath $DiskPartSrciptFileCreateVolume -Force -NoNewline -NoClobber -Encoding utf8
 
-                        Get-Partition $disk.DiskNumber | Set-Partition -NewDriveLetter $FreeDriveLetter
-                                             
-                        $PartenFolderPath = ($FreeDriveLetter +":\$ParentFolder").tostring()
-                        New-Item -Name $ParentFolder -ItemType directory -Path  ($FreeDriveLetter +":")
-                        #>
+                        $process = Start-Process -FilePath diskpart.exe -ArgumentList "/S $DiskPartSrciptFileCreateVHD" -WindowStyle Hidden -Wait -PassThru
 
-                        $Partition = New-Partition -DiskNumber $disk.Number -UseMaximumSize -AssignDriveLetter
-                        $Volume = Format-Volume -DriveLetter $Partition.DriveLetter -FileSystem NTFS -Force -Confirm:$false
-                        $PartenFolderPath = ($Partition.DriveLetter +":\$ParentFolder").tostring()
+                        If($process.ExitCode -ne 0){
+                            $WPFTextBox_Messages.Text =  ("I couldn't create vhd $VHDFile")
+                            $WPFTextBox_Messages.Foreground = "Red"
+                            return
+                        }
+                        
+
+                        $VolumesBefore = Get-Volume | Where-Object DriveLetter -ne $null
+
+                        $CreatVolumeReturn=(DISKPART /S $DiskPartSrciptFileCreateVolume)
+                        $VolumesAfter= Get-Volume | Where-Object DriveLetter -ne $null
+
+                        #Find the new Volume
+                        $NewVolume = @()
+                        ForEach($VolumeAfter in $VolumesAfter){
+                        $TrueCount = 0
+                            ForEach($VolumeBefore in $VolumesBefore){
+                                If($VolumeBefore.DriveLetter -eq $VolumeAfter.DriveLetter){
+                                    $TrueCount = $TrueCount +1
+                                }
+                            }
+                            If($TrueCount -eq 0){
+                                $NewVolume += $VolumeAfter   
+                            }
+                        }
+
+
+                        If($NewVolume.count -lt 1){
+                            $WPFTextBox_Messages.Text =  ("Found no new driveletter mounting the vhd failed")
+                            $WPFTextBox_Messages.Foreground = "Red"
+                            return
+                        }
+                        elseIf($NewVolume.count -gt 1){
+                            $WPFTextBox_Messages.Text =  ("Found to many new driveletters please try again")
+                            $WPFTextBox_Messages.Foreground = "Red"
+                            return
+                        }                        
+                        
+                        $PartenFolderPath = ($NewVolume.DriveLetter +":\$ParentFolder").tostring()
+
 
 
                         $Destiantion = $PartenFolderPath
 
-                        $Result = Start-Process -FilePath $MsixmgrExe -ArgumentList ("-Unpack -packagePath ""$MSIXCopy"" -destination ""$Destiantion"" -applyacls") -Wait -PassThru -WindowStyle Hidden
+                        $MisxmgrArgument = "-Unpack -packagePath ""$MSIXCopy"" -destination ""$Destiantion"" -applyacls"
+
+                        $Result = Start-Process -FilePath $MsixmgrExe -ArgumentList ($MisxmgrArgument) -Wait -PassThru -WindowStyle Hidden
+
+
+                        IF($Result.ExitCode -ne 0){
+                            $WPFTextBox_Messages.Text =  ("Failed to extract MSIX using: $MsixmgrExe $MisxmgrArgument" )
+                            $WPFTextBox_Messages.Foreground = "Red"
+                            return
+                        }
 
                         $PackageName = (Get-ChildItem -Path $Destiantion -Directory).Name
 
@@ -608,7 +665,7 @@ Dismount-DiskImage -ImagePath $vhdSrc
                             $AppAttachInfo = New-Object -TypeName psobject 
 
                             $AppAttachInfo | Add-Member -MemberType NoteProperty -Name MSIXName -Value $MSIXObject.Name
-                            $AppAttachInfo | Add-Member -MemberType NoteProperty -Name PartitionPath -Value $Volume.Path
+                            $AppAttachInfo | Add-Member -MemberType NoteProperty -Name PartitionPath -Value $NewVolume.Path
                             $AppAttachInfo | Add-Member -MemberType NoteProperty -Name ParentFolder -Value $ParentFolder
                             $AppAttachInfo | Add-Member -MemberType NoteProperty -Name PackageName -Value $PackageName
                         }
@@ -641,11 +698,36 @@ Dismount-DiskImage -ImagePath $vhdSrc
                     }
                     Finally{
                         #CleanUp
-                        Remove-Item $ZipFile -Force
-                        Remove-Item $Extractfolder -Force -Recurse
-                        #Get-Partition $disk.DiskNumber | Remove-Partition -Confirm:$false
-                        Dismount-VHD $VHDFile
+                        If(Test-Path $DiskPartSrciptFileCreateVHD){
+                            remove-item -Path $DiskPartSrciptFileCreateVHD -Force
+                        }
+
+                        If(Test-Path $DiskPartSrciptFileCreateVolume){
+                            remove-item -Path $DiskPartSrciptFileCreateVolume -Force
+                        }
+
+                        Remove-Item $ZipFile -Force -ErrorAction SilentlyContinue
+                        Remove-Item $Extractfolder -Force -Recurse -ErrorAction SilentlyContinue
                         Remove-Item -Path $MSIXCopy -Force -ErrorAction SilentlyContinue
+
+                        #Detach VHD
+                        $ArgumentDetachVDisk = "select vdisk file=""$VHDFile""
+                        DETACH vdisk"
+
+                        $DiskPartSrciptFileDetachVDisk ="$TempFolder\DiskpartDetachVDisk.txt"
+
+                        $ArgumentDetachVDisk | Out-File -FilePath $DiskPartSrciptFileDetachVDisk -Force -NoNewline -NoClobber -Encoding utf8
+
+                        $process = Start-Process -FilePath diskpart.exe -ArgumentList "/S $DiskPartSrciptFileDetachVDisk" -WindowStyle Hidden -Wait -PassThru
+
+                        If(Test-Path $DiskPartSrciptFileDetachVDisk){
+                            remove-item -Path $DiskPartSrciptFileDetachVDisk -Force
+                        }
+                        If($process.ExitCode -ne 0){
+                            $WPFTextBox_Messages.Text =  ("Failed to detach $VHDFile")
+                            $WPFTextBox_Messages.Foreground = "Red"
+                        }
+                        
                     }
 
                 }

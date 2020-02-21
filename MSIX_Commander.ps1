@@ -1,4 +1,4 @@
-﻿$ScriptVersion = "1.0.7.2"
+﻿$ScriptVersion = "1.0.7.3"
 # Add required assemblies for icon
 Add-Type -AssemblyName PresentationFramework, System.Drawing, System.Windows.Forms, WindowsFormsIntegration
 
@@ -56,6 +56,7 @@ $inputXML = @"
                     <Button x:Name="Button_OpenNotepad" Content="Open Notepad" HorizontalAlignment="Left" VerticalAlignment="Top" Width="114" Margin="238,105,0,0" Grid.RowSpan="2"/>
                     <TextBlock x:Name="TextBlock_OpenTools" HorizontalAlignment="Left" TextWrapping="Wrap" Text="Here you can open the following tools inside the MSIX container. This requires developer mode to be enabled on your machine." VerticalAlignment="Top" Margin="0,86,0,0"/>
                     <TextBlock x:Name="TextBlock_OpenTools_Copy" HorizontalAlignment="Left" TextWrapping="Wrap" VerticalAlignment="Top" Margin="357,106,0,0" Height="21" Width="382" Text="Notepad is a workaround since explorer is not working right now." Grid.RowSpan="2"/>
+                    <Button x:Name="Button_Start" Content="Start" HorizontalAlignment="Left" Margin="476,58,0,0" VerticalAlignment="Top" Width="114"/>
                 </Grid>
             </TabItem>
             <TabItem x:Name="Tab_certificate" Header="Certificate">
@@ -295,7 +296,7 @@ try{
     If(Test-Path -Path $JsonFile){
         $Json = get-content $JsonFile |ConvertFrom-Json
 
-        $MountedVHD = Mount-VHD -Path $vhdSrc -NoDriveLetter -ReadOnly
+        $MountedVHD = Mount-DiskImage -ImagePath $vhdSrc -NoDriveLetter -Access ReadOnly 
 
         $msixDest = $Json.PartitionPath
         $packageName = $Json.PackageName
@@ -349,6 +350,10 @@ $path = ([System.Uri]$path).AbsoluteUri
 $asyncOperation = $packageManager.StagePackageAsync("$path", $null, "StageInPlace")
 
 $task = $asTaskAsyncOperation.Invoke($null, @($asyncOperation))
+
+Do{
+    Start-Sleep -Milliseconds  100
+}Until(($task.IsCompleted -eq $true) -or ($task.IsFaulted -eq $true))
 
 $task.Exception
 $task.Status
@@ -524,7 +529,7 @@ Dismount-DiskImage -ImagePath $vhdSrc
             If($SelctedPackages.FullName.count -ge 1){
 
                 If(-!(Test-Path $MsixmgrExe)){
-                    Invoke-WebRequest -Uri $msixmgrURL -OutFile $MsixmgrZip -PassThr
+                    Invoke-WebRequest -Uri $msixmgrURL -OutFile $MsixmgrZip -PassThru -UseBasicParsing
 
                     If((Test-Path $MsixmgrZip)){
                         Expand-Archive -Path $MsixmgrZip -DestinationPath $MsixmgrFolder
@@ -898,7 +903,7 @@ Function Change-Signature {
 
     $CleandUpPath = $Path.replace('"',"")
 
-    $pfxPath = $WPFTextBox_ChangeSignature_SelectedCert.Text
+    $pfxPath = ($WPFTextBox_ChangeSignature_SelectedCert.Text).replace('"',"")
     $Password = $WPFPasswordBox_ChangeSignatureCertPassword.Password
 
     $TimeStampServer = $WPFTextBox_ChangeSignature_Timeserver.Text
@@ -1594,6 +1599,54 @@ Function Test-MSIX {
 
 }
 
+Function Start-App{
+    $SelectedMSIX = $null
+    $SelectedMSIX = $WPFListView_MSIXPackages.SelectedItem.Name
+    $SelectedMSIXInstallLocation= $WPFListView_MSIXPackages.SelectedItem.InstallLocation
+    $SelectedMSIXInstallLocation= $WPFListView_MSIXPackages.SelectedItem.InstallLocation
+    $SelectedMSIXManifest = "$SelectedMSIXInstallLocation\AppxManifest.xml"
+    
+    If($MSIXData){
+        IF($SelectedMSIX){
+            $WPFTextBox_Messages.Text =  "The selected MSIX is $SelectedMSIX"
+            $WPFTextBox_Messages.Foreground = "Black"
+
+             [XML]$SelectedMSIXManifestContent = Get-Content $SelectedMSIXManifest
+            $ApplicationIDs = ($SelectedMSIXManifestContent.Package.Applications.Application).id
+  
+       
+            If($ApplicationIDs.count -le 1){
+                try{
+                    ForEach($ApplicationID in $ApplicationIDs){
+                        explorer.exe shell:AppsFolder\$(get-appxpackage -name $SelectedMSIX | select -expandproperty PackageFamilyName)!$ApplicationID
+                    }
+                        $WPFTextBox_Messages.Text =  "Startet the Apps from the MSIX $SelectedMSIX"
+                        $WPFTextBox_Messages.Foreground = "Black"
+                    }
+                catch{
+                    $ErrorMessage = $_.Exception.Message
+
+                    $WPFTextBox_Messages.Text ="Failed to Start the Apps from  $SelectedMSIX / $ErrorMessage"
+                    $WPFTextBox_Messages.Foreground = "RED"
+                }
+            }
+            else{
+                $WPFTextBox_Messages.Text =  "Found no Application ID's in the $SelectedMSIXManifest"
+                $WPFTextBox_Messages.Foreground = "RED"
+            }
+        }
+        else{
+            $WPFTextBox_Messages.Text =  "You need to select a MSIX first"
+            $WPFTextBox_Messages.Foreground = "Black"
+        }
+    }
+    else{
+        $WPFTextBox_Messages.Text = "You need to get the Software first and then select an MSIX!"
+        $WPFTextBox_Messages.Foreground = "Black"
+    }
+
+}
+
 Function uninstall-App{
     $SelectedMSIX = $null
     $SelectedMSIX = $WPFListView_MSIXPackages.SelectedItem.Name
@@ -2231,6 +2284,10 @@ $WPFButton_OpenUserData.Add_Click({
 
 $WPFButton_Uninstall.Add_Click({
     uninstall-App
+})
+
+$WPFButton_Start.Add_Click({
+    Start-App
 })
 
 $WPFButton_OpenRegedit.Add_Click({

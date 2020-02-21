@@ -1,0 +1,80 @@
+V1.0.7.3
+New:
+- Start Button that lets you start the Applications from a selected MSIX
+
+Fix:
+- Stage Scrip now uses Mount-DiskImage instead of Mount-VHD
+- Optimized the download of the msixmgr tool so that it works even when you now longer have IE installed
+- Improved the generated Stage Script to attach a vhd. It now waits for the staging to finish bevor it returns the status.
+- Fixed a Bug where the Tool failed when there was a " in the path to the pfx.
+
+
+V1.0.7.2
+Fix:
+- Fixed a problem that the Hyper-V role was needed to create a app attach vhd.
+- Fixed a problem where sometimes the size of the vhd was to small
+
+V1.0.7
+New:
+- Added the possibility to convert MSIX packages to a vhd for MSIX AppAttach.
+
+V1.0.6
+New:
+- If you set a Filter it will now also get used after uninstalling an MSIX and when you click
+- You can now install a Certificate directly from an MSIX
+
+Fix:
+- Fixed a problem with loading the MSIX Packages that occurred when only one or no MSIX was installed.
+
+V1.0.5.4 21:01 26.06.2019
+
+New:
+- Now also available as an MSIX
+- Let's you not only enable sideloading but also Developer Mode
+- You can now open a CMD, Regedit or notepad inside your MSIX Container, almost like the /appvve: paramter for App-V
+
+
+Fix:
+- Error on startup when sideloading has never been activated
+- Fixed some writing errors
+
+V1.0.4 00:07 15.06.2019
+
+New:
+- Showing Dependencies (Modification Packages) of installed MSIX Packages
+- Shows if sideloading is activated or not and allows to change the status
+
+Fix:
+- Fixed some writing errors
+
+V1.0.3 16:38 29.03.2019
+
+New:
+- Open Manifest Button
+- Added the Edit Manifest Tab. It lets you change the Min- and Maxversions in a Manifest of one ore multiple MSIX Files automatically.
+- Added the Change Signature Tab. If you sing your packages with a self singed testcert and later want to change the signature to a productive cert, you can do that for one ore multiple MSIX Files automatically.
+- Added the stop services button to the Packaging Machine tab, it lets you stop and disable some services to get a quieter machine and less trash in your package.
+
+Fix:
+- Set some Value for the Minimum Size for the MSIX Package ListView
+- Doubled the size of the Message Textbox to let you see more of the information provided there without making the window larger.
+- Changed the Filter to get SignatureKind Developer (New after 1903) and Enterprise
+
+
+V1.0.0 23:19 14.03.2019
+
+New:
+- Show all installed MSIX packages
+- Open the install directory and user data directory of those installed MSIX packages
+- Uninstall MSIX packages
+- Create a self-signed code signing certificate
+- Install a self-signed code signing certificate
+- Install an MSIX package
+- Install an MSIX package just to test it.
+- Install multiple MSIX packages to test them.
+- Check the status of the MSIX packaging tool driver
+- Install the MSIX packaging tool driver from Windows Update
+- Uninstall the MSIX packaging tool driver
+
+Fix:
+- First Version, therefore, no fixes yet

@@ -1,4 +1,4 @@
-﻿$ScriptVersion = "1.0.7.3"
+﻿$ScriptVersion = "1.0.7.4"
 # Add required assemblies for icon
 Add-Type -AssemblyName PresentationFramework, System.Drawing, System.Windows.Forms, WindowsFormsIntegration
 
@@ -133,6 +133,9 @@ $inputXML = @"
                     <TextBlock x:Name="TexBlock_CurrentSideloading" HorizontalAlignment="Left" Margin="6,273,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="22" Width="179"><Span Foreground="Black" FontSize="12" FontFamily="Segoe UI"><Run Text="The current sideloading status is:"/></Span><Span Foreground="Black" FontSize="12" FontFamily="Segoe UI"><LineBreak/></Span><LineBreak/><Run Text=""/><LineBreak/><Run Text=""/></TextBlock>
                     <TextBlock x:Name="TexBlock_CurrentSideloading_Status" HorizontalAlignment="Left" Margin="190,273,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="22" Width="179" FontWeight="Bold" Foreground="#FFFF0600"/>
                     <Button x:Name="Button_EnableDevMode" Content="Enable Developer Mode*" Margin="438,300,0,0" VerticalAlignment="Top" Height="33" HorizontalAlignment="Left" Width="164"/>
+                    <Label x:Name="Label_DisableStoreUpdates" Content="Disable automatic Updates of Store Apps" HorizontalAlignment="Left" VerticalAlignment="Top" FontWeight="Bold" Margin="0,349,0,0"/>
+                    <TextBlock x:Name="TexBlock_DisableStoreUpdates" HorizontalAlignment="Left" Margin="6,375,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="22" Width="758"><Run Text="This button lets you disable automatic Updates of Windows Store Apps."/><Run Text=" "/><Run Text="This requires Administrator rights."/></TextBlock>
+                    <Button x:Name="Button_DisableStoreUpdates" Content="Stop automatic Store Updates*" Margin="304,402,0,0" VerticalAlignment="Top" Height="33" HorizontalAlignment="Left" Width="179"/>
                 </Grid>
             </TabItem>
             <TabItem x:Name="Tab_EditManifest" Header="EditManifest">
@@ -1103,6 +1106,43 @@ Function Change-Signature {
         }
     }else{
         $WPFTextBox_Messages.Text =  ("No pfx cert and password, therefore I don’t need to modify anything.")
+        $WPFTextBox_Messages.Foreground = "Red"
+    }
+}
+
+Function Disable-AutomaticStoreAppUpdates{
+
+    $Name = "AutoDownload"
+    $Value  = 2
+    $Path = "HKLM:\SOFTWARE\Policies\Microsoft\WindowsStore"
+
+    If($UserIsAdmin -eq $true){
+        #Disable Services
+
+        try{
+
+            If ((Test-Path $Path) -eq $false){
+                New-Item -Path $Path -ItemType Directory
+            }
+
+            If (-!(Get-ItemProperty -Path $Path -Name $name -ErrorAction SilentlyContinue)){
+                New-ItemProperty -Path $Path -Name $Name -PropertyType DWord -Value $Value
+            }
+            else{
+                Set-ItemProperty -Path $Path -Name $Name -Value $Value
+            }
+
+            $WPFTextBox_Messages.Text =  "Disabled automatic Updates of Windows Store Apps.”
+            $WPFTextBox_Messages.Foreground = "Black"
+
+        }
+        catch{
+            $WPFTextBox_Messages.Text =  ("Failed to disable automatic Updates of Windows Store Apps.")
+            $WPFTextBox_Messages.Foreground = "Red"
+        }
+    }
+    else{
+        $WPFTextBox_Messages.Text =  "You are not an administrator and this functionality requires admin rights.”
         $WPFTextBox_Messages.Foreground = "Red"
     }
 }
@@ -2553,6 +2593,10 @@ $WPFButton_PackagingToolDriverUninstall.Add_Click({
 
 $WPFButton_StopServices.Add_Click({
     Stop-Services
+})
+$WPFButton_DisableStoreUpdates.Add_Click({
+
+    Disable-AutomaticStoreAppUpdates
 })
 
 $WPFButton_Change_SidelaodingStatus.add_click({

@@ -1,3 +1,7 @@
+V1.0.7.4
+New:
+- Button to disable automatic Updates of Windows Store Apps
+
 V1.0.7.3
 New:
 - Start Button that lets you start the Applications from a selected MSIX

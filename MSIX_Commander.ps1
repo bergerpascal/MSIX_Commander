@@ -36,6 +36,7 @@ $inputXML = @"
                                 <GridViewColumn Header="Name" DisplayMemberBinding ="{Binding Name}"/>
                                 <GridViewColumn Header="Version" DisplayMemberBinding ="{Binding Version}"/>
                                 <GridViewColumn Header="PackageType" DisplayMemberBinding ="{Binding PackageType}"/>
+                                <GridViewColumn Header="HasPsf" DisplayMemberBinding ="{Binding HasPsf}"/>
                                 <GridViewColumn Header="Publisher" DisplayMemberBinding ="{Binding Publisher}"/>
                                 <GridViewColumn Header="InstallLocation" DisplayMemberBinding ="{Binding InstallLocation}"/>
                                 <GridViewColumn Header="Modifications" DisplayMemberBinding ="{Binding Dependencies}"/>
@@ -1797,6 +1798,7 @@ Function Get-InstalledMSIX{
         }
 
         $PackageType = 'Appx'
+        $HasPsf = $false
         $mani =  Get-AppxPackageManifest -Package $InstalledApp.PackageFullName
         $capabilitiesArr = $mani.GetElementsByTagName('Capabilities')
         ForEach($capabilities in $capabilitiesArr)
@@ -1807,6 +1809,11 @@ Function Get-InstalledMSIX{
                 if ($rescapCapability.Name -eq 'runFullTrust')
                 {
                     $PackageType = 'MSIX (Full Trust)'
+                    $PsfConfigArr = Get-ChildItem -Filter 'config.json' -recurse -path $InstalledApp.InstallLocation
+                    if ($PsfConfigArr -ne $null)
+                    {
+                        $HasPsf = $true
+                    }
                 }
             }
             $capabilityArr = $capabilities.GetElementsByTagName('Capability')
@@ -1816,6 +1823,11 @@ Function Get-InstalledMSIX{
                 if ($capability.Name -eq 'runFullTrust')
                 {
                     $PackageType = 'MSIX (Full Trust)'
+                    $PsfConfigArr = Get-ChildItem -Filter 'config.json' -recurse -path $InstalledApp.InstallLocation
+                    if ($PsfConfigArr -ne $null)
+                    {
+                        $HasPsf = $true
+                    }
                 }
             }
         }
@@ -1828,6 +1840,7 @@ Function Get-InstalledMSIX{
         $SoftwareDetail | Add-Member -Name "Publisher" -MemberType NoteProperty -Value $Publisher
         $SoftwareDetail | Add-Member -Name "InstallLocation" -MemberType NoteProperty -Value $InstallLocation
         $SoftwareDetail | Add-Member -Name "PackageType" -MemberType NoteProperty -Value $PackageType
+        $SoftwareDetail | Add-Member -Name "HasPsf" -MemberType NoteProperty -Value $HasPsf
         $SoftwareDetail | Add-Member -Name "Dependencies" -MemberType NoteProperty -Value $Dependencies
 
         $Script:MSIXData += $SoftwareDetail

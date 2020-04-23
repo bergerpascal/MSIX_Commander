@@ -1,4 +1,4 @@
-﻿$ScriptVersion = "1.0.7.4"
+﻿$ScriptVersion = "1.0.7.3"
 # Add required assemblies for icon
 Add-Type -AssemblyName PresentationFramework, System.Drawing, System.Windows.Forms, WindowsFormsIntegration
 
@@ -35,6 +35,7 @@ $inputXML = @"
                             <GridView>
                                 <GridViewColumn Header="Name" DisplayMemberBinding ="{Binding Name}"/>
                                 <GridViewColumn Header="Version" DisplayMemberBinding ="{Binding Version}"/>
+                                <GridViewColumn Header="PackageType" DisplayMemberBinding ="{Binding PackageType}"/>
                                 <GridViewColumn Header="Publisher" DisplayMemberBinding ="{Binding Publisher}"/>
                                 <GridViewColumn Header="InstallLocation" DisplayMemberBinding ="{Binding InstallLocation}"/>
                                 <GridViewColumn Header="Modifications" DisplayMemberBinding ="{Binding Dependencies}"/>
@@ -133,9 +134,6 @@ $inputXML = @"
                     <TextBlock x:Name="TexBlock_CurrentSideloading" HorizontalAlignment="Left" Margin="6,273,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="22" Width="179"><Span Foreground="Black" FontSize="12" FontFamily="Segoe UI"><Run Text="The current sideloading status is:"/></Span><Span Foreground="Black" FontSize="12" FontFamily="Segoe UI"><LineBreak/></Span><LineBreak/><Run Text=""/><LineBreak/><Run Text=""/></TextBlock>
                     <TextBlock x:Name="TexBlock_CurrentSideloading_Status" HorizontalAlignment="Left" Margin="190,273,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="22" Width="179" FontWeight="Bold" Foreground="#FFFF0600"/>
                     <Button x:Name="Button_EnableDevMode" Content="Enable Developer Mode*" Margin="438,300,0,0" VerticalAlignment="Top" Height="33" HorizontalAlignment="Left" Width="164"/>
-                    <Label x:Name="Label_DisableStoreUpdates" Content="Disable automatic Updates of Store Apps" HorizontalAlignment="Left" VerticalAlignment="Top" FontWeight="Bold" Margin="0,349,0,0"/>
-                    <TextBlock x:Name="TexBlock_DisableStoreUpdates" HorizontalAlignment="Left" Margin="6,375,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="22" Width="758"><Run Text="This button lets you disable automatic Updates of Windows Store Apps."/><Run Text=" "/><Run Text="This requires Administrator rights."/></TextBlock>
-                    <Button x:Name="Button_DisableStoreUpdates" Content="Stop automatic Store Updates*" Margin="304,402,0,0" VerticalAlignment="Top" Height="33" HorizontalAlignment="Left" Width="179"/>
                 </Grid>
             </TabItem>
             <TabItem x:Name="Tab_EditManifest" Header="EditManifest">
@@ -1110,43 +1108,6 @@ Function Change-Signature {
     }
 }
 
-Function Disable-AutomaticStoreAppUpdates{
-
-    $Name = "AutoDownload"
-    $Value  = 2
-    $Path = "HKLM:\SOFTWARE\Policies\Microsoft\WindowsStore"
-
-    If($UserIsAdmin -eq $true){
-        #Disable Services
-
-        try{
-
-            If ((Test-Path $Path) -eq $false){
-                New-Item -Path $Path -ItemType Directory
-            }
-
-            If (-!(Get-ItemProperty -Path $Path -Name $name -ErrorAction SilentlyContinue)){
-                New-ItemProperty -Path $Path -Name $Name -PropertyType DWord -Value $Value
-            }
-            else{
-                Set-ItemProperty -Path $Path -Name $Name -Value $Value
-            }
-
-            $WPFTextBox_Messages.Text =  "Disabled automatic Updates of Windows Store Apps.”
-            $WPFTextBox_Messages.Foreground = "Black"
-
-        }
-        catch{
-            $WPFTextBox_Messages.Text =  ("Failed to disable automatic Updates of Windows Store Apps.")
-            $WPFTextBox_Messages.Foreground = "Red"
-        }
-    }
-    else{
-        $WPFTextBox_Messages.Text =  "You are not an administrator and this functionality requires admin rights.”
-        $WPFTextBox_Messages.Foreground = "Red"
-    }
-}
-
 Function Stop-Services {
 
     #List Of Services to stopp and disable
@@ -1808,13 +1769,13 @@ Function Get-InstalledMSIX{
 
 
     If($WPFCheckBox_EnterpriseSigned.IsChecked){
-        $InstalledApps += Get-AppxPackage | Where-object SignatureKind -EQ "Developer"  |Select-Object -Property Name,Version,Publisher,InstallLocation,Dependencies
-        $InstalledApps += Get-AppxPackage | Where-object SignatureKind -EQ "Enterprise"  |Select-Object -Property Name,Version,Publisher,InstallLocation,Dependencies  
+        $InstalledApps += Get-AppxPackage | Where-object SignatureKind -EQ "Developer"  |Select-Object -Property Name,Version,Publisher,InstallLocation,Dependencies,PackageFullName
+        $InstalledApps += Get-AppxPackage | Where-object SignatureKind -EQ "Enterprise"  |Select-Object -Property Name,Version,Publisher,InstallLocation,Dependencies,PackageFullName  
 
     }
     else{
 
-        $InstalledApps = Get-AppxPackage | Select-Object -Property Name,Version,Publisher,InstallLocation,Dependencies 
+        $InstalledApps = Get-AppxPackage | Select-Object -Property Name,Version,Publisher,InstallLocation,Dependencies,PackageFullName 
 
     }
 
@@ -1835,6 +1796,30 @@ Function Get-InstalledMSIX{
             }
         }
 
+        $PackageType = 'Appx'
+        $mani =  Get-AppxPackageManifest -Package $InstalledApp.PackageFullName
+        $capabilitiesArr = $mani.GetElementsByTagName('Capabilities')
+        ForEach($capabilities in $capabilitiesArr)
+        {
+            $rescapCapabilityArr = $capabilities.GetElementsByTagName('rescap:Capability')
+            foreach ($rescapCapability in $rescapCapabilityArr)
+            {
+                if ($rescapCapability.Name -eq 'runFullTrust')
+                {
+                    $PackageType = 'MSIX (Full Trust)'
+                }
+            }
+            $capabilityArr = $capabilities.GetElementsByTagName('Capability')
+            foreach ($capability in $capabilityArr)
+            {
+                #only possible in manually generated manifests
+                if ($capability.Name -eq 'runFullTrust')
+                {
+                    $PackageType = 'MSIX (Full Trust)'
+                }
+            }
+        }
+
         #$InstallDate = [Datetime]::ParseExact($InstalledSoftware.InstallDate,(Get-culture).DateTimeFormat.ShortDatePattern +" " +(Get-culture).DateTimeFormat.LongTimePattern,$null)
 
         $SoftwareDetail = New-Object PSObject
@@ -1842,6 +1827,7 @@ Function Get-InstalledMSIX{
         $SoftwareDetail | Add-Member -Name "Version" -MemberType NoteProperty -Value $Version
         $SoftwareDetail | Add-Member -Name "Publisher" -MemberType NoteProperty -Value $Publisher
         $SoftwareDetail | Add-Member -Name "InstallLocation" -MemberType NoteProperty -Value $InstallLocation
+        $SoftwareDetail | Add-Member -Name "PackageType" -MemberType NoteProperty -Value $PackageType
         $SoftwareDetail | Add-Member -Name "Dependencies" -MemberType NoteProperty -Value $Dependencies
 
         $Script:MSIXData += $SoftwareDetail
@@ -2593,10 +2579,6 @@ $WPFButton_PackagingToolDriverUninstall.Add_Click({
 
 $WPFButton_StopServices.Add_Click({
     Stop-Services
-})
-$WPFButton_DisableStoreUpdates.Add_Click({
-
-    Disable-AutomaticStoreAppUpdates
 })
 
 $WPFButton_Change_SidelaodingStatus.add_click({

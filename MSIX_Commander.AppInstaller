@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<AppInstaller  Version="1.0.7.5" Uri="https://github.com/bergerpascal/MSIX_Commander/blob/master/MSIX_Commander.AppInstaller" xmlns="http://schemas.microsoft.com/appx/appinstaller/2018">
+<AppInstaller  Version="1.0.7.5" Uri="https://raw.githubusercontent.com/bergerpascal/MSIX_Commander/master/MSIX_Commander.AppInstaller" xmlns="http://schemas.microsoft.com/appx/appinstaller/2018">
   <MainPackage
     Name="PascalBerger.MSIXCommander"
     Publisher="CN=baseVISION AG, O=baseVISION AG, L=Däniken, S=Solothurn, C=CH"

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AppInstaller
+  Version="1.0.7.5"
+  Uri="C:\Users\pasca\OneDrive\_Scripts\_PS\MSIX\MSIX Commander\_Builds" xmlns="http://schemas.microsoft.com/appx/appinstaller/2017/2">
+  <MainPackage
+    Name="PascalBerger.MSIXCommander"
+    Publisher="CN=baseVISION AG, O=baseVISION AG, L=Däniken, S=Solothurn, C=CH"
+    Version="1.0.7.5"
+    ProcessorArchitecture="x64"
+    Uri="https://github.com/bergerpascal/MSIX_Commander/releases/download/V1.0.7.5/MSIX.Commander_1.0.7.5-x64.msix" />
+  <UpdateSettings>
+    <OnLaunch
+      HoursBetweenUpdateChecks="24" />
+    <AutomaticBackgroundTask />
+  </UpdateSettings>
+</AppInstaller>

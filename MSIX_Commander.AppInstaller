@@ -1,7 +1,7 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <AppInstaller
   Version="1.0.7.5"
-  Uri="C:\Users\pasca\OneDrive\_Scripts\_PS\MSIX\MSIX Commander\_Builds" xmlns="http://schemas.microsoft.com/appx/appinstaller/2017/2">
+  Uri="https://github.com/bergerpascal/MSIX_Commander/blob/master/MSIX_Commander.AppInstaller" xmlns="http://schemas.microsoft.com/appx/appinstaller/2017/2">
   <MainPackage
     Name="PascalBerger.MSIXCommander"
     Publisher="CN=baseVISION AG, O=baseVISION AG, L=Däniken, S=Solothurn, C=CH"

@@ -1,4 +1,4 @@
-﻿$ScriptVersion = "1.0.7.3"
+﻿$ScriptVersion = "1.0.7.5"
 # Add required assemblies for icon
 Add-Type -AssemblyName PresentationFramework, System.Drawing, System.Windows.Forms, WindowsFormsIntegration
 
@@ -135,6 +135,9 @@ $inputXML = @"
                     <TextBlock x:Name="TexBlock_CurrentSideloading" HorizontalAlignment="Left" Margin="6,273,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="22" Width="179"><Span Foreground="Black" FontSize="12" FontFamily="Segoe UI"><Run Text="The current sideloading status is:"/></Span><Span Foreground="Black" FontSize="12" FontFamily="Segoe UI"><LineBreak/></Span><LineBreak/><Run Text=""/><LineBreak/><Run Text=""/></TextBlock>
                     <TextBlock x:Name="TexBlock_CurrentSideloading_Status" HorizontalAlignment="Left" Margin="190,273,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="22" Width="179" FontWeight="Bold" Foreground="#FFFF0600"/>
                     <Button x:Name="Button_EnableDevMode" Content="Enable Developer Mode*" Margin="438,300,0,0" VerticalAlignment="Top" Height="33" HorizontalAlignment="Left" Width="164"/>
+                    <Label x:Name="Label_DisableStoreUpdates" Content="Disable automatic Updates of Store Apps" HorizontalAlignment="Left" VerticalAlignment="Top" FontWeight="Bold" Margin="0,349,0,0"/>
+                    <TextBlock x:Name="TexBlock_DisableStoreUpdates" HorizontalAlignment="Left" Margin="6,375,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="22" Width="758"><Run Text="This button lets you disable automatic Updates of Windows Store Apps."/><Run Text=" "/><Run Text="This requires Administrator rights."/></TextBlock>
+                    <Button x:Name="Button_DisableStoreUpdates" Content="Stop automatic Store Updates*" Margin="304,402,0,0" VerticalAlignment="Top" Height="33" HorizontalAlignment="Left" Width="179"/>
                 </Grid>
             </TabItem>
             <TabItem x:Name="Tab_EditManifest" Header="EditManifest">
@@ -205,6 +208,16 @@ $inputXML = @"
 
                 </Grid>
             </TabItem>
+            <TabItem x:Name="Tab_Troubleshoot" Header="Troubleshoot" Margin="-2,0,-2.4,0">
+                <Grid Background="#FFE5E5E5" Margin="0,0,0,-183">
+                    <Button x:Name="Button_OpenEventLogs" Content="Open Event Logs" Margin="188,51,0,0" VerticalAlignment="Top" Height="26" HorizontalAlignment="Left" Width="128"/>
+                    <Label x:Name="Label_OpenEventLogs" Content="Open Event Logs" HorizontalAlignment="Left" VerticalAlignment="Top" FontWeight="Bold" Margin="-2,3,0,0"/>
+                    <TextBlock x:Name="TexBlock_OpenEventLogs" HorizontalAlignment="Left" Margin="3,29,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="19" Width="757"><Span Foreground="Black"><Run Text="This will open all Event logs that contain *Microsoft-Windows-*Appx* in their name and that occurred in the time period you define."/></Span><LineBreak/><Run Text=""/></TextBlock>
+                    <Label x:Name="Label_OpenEventLogs1" Content="From the last hour(s):" HorizontalAlignment="Left" Margin="-2,51,0,0" VerticalAlignment="Top"/>
+                    <TextBox x:Name="TextBox_OpenEventLogsHours" Height="26" Margin="136,55,603.4,0" TextWrapping="Wrap" VerticalAlignment="Top" MaxHeight="20" Text="1"/>
+
+                </Grid>
+            </TabItem>
         </TabControl>
         <Label x:Name="Label_AdminRights" Content="*Those actions require the tool to be executed as an administrator" Margin="0,0,375,-1.5" Height="26" VerticalAlignment="Bottom"/>
         <Label x:Name="Label_Version" Content="Version:" HorizontalAlignment="Right" Margin="0,0,0,0.5" RenderTransformOrigin="2.747,0.588" Height="24" VerticalAlignment="Bottom"/>
@@ -245,7 +258,52 @@ Get-FormVariables
 
 #endregion
 
+
 #region Functions
+
+Function Open-Eventlogs{
+
+    try{
+
+        $EventLogsCount = 0
+        $AllEvents = @()
+        [Double]$TimePeriod = $WPFTextBox_OpenEventLogsHours.Text
+        $LastHours = $TimePeriod * 3600000
+
+        $AppxLogs =((Get-WinEvent -ListLog *Microsoft-Windows-*Appx* -ErrorAction SilentlyContinue).Logname).split(" ")
+
+        $AppxLogsCount  = $AppxLogs.count
+        ForEach($AppxLog in $AppxLogs){
+
+            $filterXml = @"
+            <QueryList>
+              <Query Id="0" Path="$AppxLog">
+                <Select Path="$AppxLog">*[System[TimeCreated[timediff(@SystemTime) &lt;= $LastHours ]]]</Select>
+              </Query>
+            </QueryList>
+"@
+            $Events =  Get-WinEvent -filterXml $filterXml -ErrorAction SilentlyContinue
+            IF($Events) {
+                $Events | Out-GridView -Title "EventLog: $AppxLog" -ErrorAction SilentlyContinue
+                $EventLogsCount = $EventLogsCount+1
+                $AllEvents += $Events
+
+            }
+        }
+
+        $AllEvents |Sort-Object TimeCreated -Descending | Out-GridView -Title "Consolidated Events from all $EventLogsCount Log(s)"
+
+        $WPFTextBox_Messages.Text = "From $AppxLogsCount MSIX Eventlogs, $EventLogsCount had Events that hapennd in the last $TimePeriod hour(s). I opend only those."
+        $WPFTextBox_Messages.Foreground = "Black"
+
+
+    }
+    catch{
+        $ErrorMessage = $_.Exception.Message
+        $WPFTextBox_Messages.Text =  ("Couldn't opend Event Logs / $ErrorMessage")
+        $WPFTextBox_Messages.Foreground = "Red"
+    }
+}
 
 Function ConvertTo-VHD {
 
@@ -370,7 +428,6 @@ $task.Status
     $Scriptblock2Register = {
 #MSIX app attach registration sample
 
-#region variables
 
 #region variables
 
@@ -1109,6 +1166,43 @@ Function Change-Signature {
     }
 }
 
+Function Disable-AutomaticStoreAppUpdates{
+
+    $Name = "AutoDownload"
+    $Value  = 2
+    $Path = "HKLM:\SOFTWARE\Policies\Microsoft\WindowsStore"
+
+    If($UserIsAdmin -eq $true){
+        #Disable Services
+
+        try{
+
+            If ((Test-Path $Path) -eq $false){
+                New-Item -Path $Path -ItemType Directory
+            }
+
+            If (-!(Get-ItemProperty -Path $Path -Name $name -ErrorAction SilentlyContinue)){
+                New-ItemProperty -Path $Path -Name $Name -PropertyType DWord -Value $Value
+            }
+            else{
+                Set-ItemProperty -Path $Path -Name $Name -Value $Value
+            }
+
+            $WPFTextBox_Messages.Text =  "Disabled automatic Updates of Windows Store Apps.”
+            $WPFTextBox_Messages.Foreground = "Black"
+
+        }
+        catch{
+            $WPFTextBox_Messages.Text =  ("Failed to disable automatic Updates of Windows Store Apps.")
+            $WPFTextBox_Messages.Foreground = "Red"
+        }
+    }
+    else{
+        $WPFTextBox_Messages.Text =  "You are not an administrator and this functionality requires admin rights.”
+        $WPFTextBox_Messages.Foreground = "Red"
+    }
+}
+
 Function Stop-Services {
 
     #List Of Services to stopp and disable
@@ -1799,7 +1893,11 @@ Function Get-InstalledMSIX{
 
         $PackageType = 'Appx'
         $HasPsf = $false
-        $mani =  Get-AppxPackageManifest -Package $InstalledApp.PackageFullName
+        try{
+            $mani =  Get-AppxPackageManifest -Package $InstalledApp.PackageFullName
+        }
+        catch{
+        }
         $capabilitiesArr = $mani.GetElementsByTagName('Capabilities')
         ForEach($capabilities in $capabilitiesArr)
         {
@@ -2288,6 +2386,32 @@ If($RunMode -eq "Script"){
 
 #endregion
 
+#region ListView_MSIXPackages Sort Function
+
+$ListView_MSIXPackagesSortAction= {
+    $col =$_.OriginalSource.Column.Header
+	$view = [System.Windows.Data.CollectionViewSource]::GetDefaultView($WPFListView_MSIXPackages.ItemsSource)
+	$view.SortDescriptions.Clear()
+
+    if ($script:ListInstalledSort -eq 'descending'){
+        $desc = New-Object System.ComponentModel.SortDescription($col,'Ascending')
+        $script:ListInstalledSort = 'ascending'
+    }
+    ElseIf ($script:ListInstalledSort -eq 'ascending'){
+        $desc = New-Object System.ComponentModel.SortDescription($col,'Descending')
+        $script:ListInstalledSort = 'descending'
+    }
+    Else{
+        $desc = New-Object System.ComponentModel.SortDescription($col,'Ascending')
+        $script:ListInstalledSort = 'ascending'
+    }  
+    $view.SortDescriptions.Add($desc)
+
+}
+$ListView_MSIXPackagesEvent = [Windows.RoutedEventHandler]$ListView_MSIXPackagesSortAction
+$WPFListView_MSIXPackages.AddHandler([System.Windows.Controls.GridViewColumnHeader]::ClickEvent, $ListView_MSIXPackagesEvent)
+#endregion
+
 
 #region Actions
 
@@ -2593,6 +2717,10 @@ $WPFButton_PackagingToolDriverUninstall.Add_Click({
 $WPFButton_StopServices.Add_Click({
     Stop-Services
 })
+$WPFButton_DisableStoreUpdates.Add_Click({
+
+    Disable-AutomaticStoreAppUpdates
+})
 
 $WPFButton_Change_SidelaodingStatus.add_click({
 
@@ -2680,6 +2808,15 @@ $WPFButton_AppAttachConvertToVHD_Convert.Add_Click({
         $WPFTextBox_Messages.Foreground = "Red"
     }
 })
+
+
+#Troubleshoting Actions
+
+$WPFButton_OpenEventLogs.Add_Click({
+
+    Open-Eventlogs
+})
+
 
 
 #endregion

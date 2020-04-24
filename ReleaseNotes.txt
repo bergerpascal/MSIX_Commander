@@ -1,3 +1,12 @@
+V1.0.7.5
+New:
+- Shows if a Package is an MSIX or an Appx (Added by Timothy Mangan)
+- Shows if a Package uses the PSF (Added by Timothy Mangan)
+- Made the List of the Installed Packages sortable.
+- Added Option to open the MSIX related Event Logs form a selectable Time Period
+- MSIX Commander is now also available to install trough an AppInstaller File.
+  If you install it that way you will get automatic Updates, and never have to worry again that you miss a new version.
+
 V1.0.7.4
 New:
 - Button to disable automatic Updates of Windows Store Apps

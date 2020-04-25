@@ -8,6 +8,8 @@ Parts of it will also work with Windows 10 1803 and 1709.
 
 https://github.com/bergerpascal/MSIX_Commander/releases
 
+ms-appinstaller:/?source=https://msixcommander.azurewebsites.net/MSIX_Commander.AppInstaller
+
 Or from here and use the AppInstaller technology that provides auto update functionality:
 http://msixcommander.azurewebsites.net/
 

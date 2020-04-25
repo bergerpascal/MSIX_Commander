@@ -4,11 +4,13 @@ The MSIX Commander is a tool for the packaging engineer and IT-Support staff, th
 If you want to use all the features the tool offers you will need Windows 10 1809 or higher.
 Parts of it will also work with Windows 10 1803 and 1709.
 
+# Install:
+you can directly install it from here:
+https://msixcommander.azurewebsites.net/MSIX_Commander.AppInstaller
+
 # Download:
 
 https://github.com/bergerpascal/MSIX_Commander/releases
-
-ms-appinstaller:/?source=https://msixcommander.azurewebsites.net/MSIX_Commander.AppInstaller
 
 Or from here and use the AppInstaller technology that provides auto update functionality:
 http://msixcommander.azurewebsites.net/
